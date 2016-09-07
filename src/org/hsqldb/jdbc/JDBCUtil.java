@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,11 +50,11 @@ import org.hsqldb.error.Error;
 import org.hsqldb.error.ErrorCode;
 import org.hsqldb.result.Result;
 
-/* $Id$ */
+/* $Id: JDBCUtil.java 5552 2016-03-12 21:32:03Z fredt $ */
 
 // boucherb@users - 20060523 - patch 1.9.0 - removed some unused imports
 // Revision 1.16  2006/07/12 11:53:53  boucherb
-//  - merging back remaining material overritten by Fred's type-system upgrades
+//  - merging back remaining material overwritten by Fred's type-system upgrades
 
 /**
  * Provides driver constants and a gateway from internal HsqlExceptions to
@@ -65,9 +65,9 @@ import org.hsqldb.result.Result;
  * @version 2.0.1
  * @since 1.7.2
  */
-public class JDBCUtil {
+public final class JDBCUtil {
 
-    static final void throwError(HsqlException e) throws SQLException {
+    static void throwError(HsqlException e) throws SQLException {
 
 //#ifdef JAVA6
         throw sqlException(e.getMessage(), e.getSQLState(), e.getErrorCode(),
@@ -86,7 +86,7 @@ public class JDBCUtil {
 //#endif JAVA6
     }
 
-    static final void throwError(Result r) throws SQLException {
+    static void throwError(Result r) throws SQLException {
 
 //#ifdef JAVA6
         throw sqlException(r.getMainString(), r.getSubString(),
@@ -107,7 +107,7 @@ public class JDBCUtil {
 //#endif JAVA6
     }
 
-    public static final SQLException sqlException(HsqlException e) {
+    public static SQLException sqlException(HsqlException e) {
 
 //#ifdef JAVA6
         return sqlException(e.getMessage(), e.getSQLState(), e.getErrorCode(),
@@ -126,7 +126,7 @@ public class JDBCUtil {
 //#endif JAVA6
     }
 
-    public static final SQLException sqlException(HsqlException e,
+    public static SQLException sqlException(HsqlException e,
             Throwable cause) {
 
 //#ifdef JAVA6
@@ -148,32 +148,32 @@ public class JDBCUtil {
 //#endif JAVA6
     }
 
-    public static final SQLException sqlException(int id) {
+    public static SQLException sqlException(int id) {
         return sqlException(Error.error(id));
     }
 
-    public static final SQLException sqlExceptionSQL(int id) {
+    public static SQLException sqlExceptionSQL(int id) {
         return sqlException(Error.error(id));
     }
 
-    public static final SQLException sqlException(int id, String message) {
+    public static SQLException sqlException(int id, String message) {
         return sqlException(Error.error(id, message));
     }
 
-    public static final SQLException sqlException(int id, String message,
+    public static SQLException sqlException(int id, String message,
             Throwable cause) {
         return sqlException(Error.error(id, message), cause);
     }
 
-    public static final SQLException sqlException(int id, int add) {
+    public static SQLException sqlException(int id, int add) {
         return sqlException(Error.error(id, add));
     }
 
-    static final SQLException sqlException(int id, int subId, Object[] add) {
+    static SQLException sqlException(int id, int subId, Object[] add) {
         return sqlException(Error.error(null, id, subId, add));
     }
 
-    static final SQLException notSupported() {
+    static SQLException notSupported() {
 
 //#ifdef JAVA6
         HsqlException e = Error.error(ErrorCode.X_0A000);
@@ -298,7 +298,7 @@ public class JDBCUtil {
 // 094=08003 Database does not exists                          - better 08001 ?
 //
 //#ifdef JAVA6
-    public static final SQLException sqlException(String msg, String sqlstate,
+    public static SQLException sqlException(String msg, String sqlstate,
             int code, Throwable cause) {
 
         if (sqlstate.startsWith("08")) {
@@ -341,7 +341,7 @@ public class JDBCUtil {
             // Condition                               Class SubClass
             // syntax error or access rule violation -  42   (no subclass) 000
             //
-            // SQL 2003 describes an Access Rule Violation as refering to
+            // SQL 2003 describes an Access Rule Violation as referring to
             // the case where, in the course of preparing or executing
             // an SQL statement, an Access Rule section pertaining
             // to one of the elements of the statement is violated.

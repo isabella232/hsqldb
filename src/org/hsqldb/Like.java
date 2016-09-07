@@ -1,7 +1,7 @@
 /*
  * For work developed by the HSQL Development Group:
  *
- * Copyright (c) 2001-2011, The HSQL Development Group
+ * Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -84,11 +84,12 @@ import org.hsqldb.types.Type;
 /**
  * Reusable object for processing LIKE queries.
  *
- * Enhanced in successive versions of HSQLDB.
+ * Rewritten in HSQLDB based on original Hypersonic code.<p>
  *
+ * @author Fred Toussi (fredt@users dot sourceforge dot net)
  * @author Thomas Mueller (Hypersonic SQL Group)
  * @version 2.3.1
- * @since Hypersonic SQL
+ * @since 1.6.2
  */
 
 // boucherb@users 20030930 - patch 1.7.2 - optimize into joins if possible
@@ -216,7 +217,7 @@ class Like implements Cloneable {
     }
 
     private boolean compareAt(Session session, Object o, int i, int j,
-                              int iLen, int jLen, char cLike[],
+                              int iLen, int jLen, char[] cLike,
                               int[] wildCardType) {
 
         for (; i < iLen; i++) {

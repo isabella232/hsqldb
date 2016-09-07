@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@ import java.io.UnsupportedEncodingException;
 import java.util.zip.GZIPOutputStream;
 
 import org.hsqldb.Database;
-import org.hsqldb.HsqlNameManager;
 import org.hsqldb.HsqlNameManager.HsqlName;
 import org.hsqldb.NumberSequence;
 import org.hsqldb.Row;
@@ -121,8 +120,8 @@ public class ScriptWriterText extends ScriptWriterBase {
 
     public ScriptWriterText(Database db, String file,
                             boolean includeCachedData, boolean newFile,
-                            boolean isDump) {
-        super(db, file, includeCachedData, newFile, isDump);
+                            boolean isUserScript) {
+        super(db, file, includeCachedData, newFile, isUserScript);
     }
 
     public ScriptWriterText(Database db, String file,
@@ -209,7 +208,7 @@ public class ScriptWriterText extends ScriptWriterBase {
 
         writeSessionIdAndSchema(session);
         rowOut.reset();
-        ((RowOutputTextLog) rowOut).setMode(RowOutputTextLog.MODE_INSERT);
+        rowOut.setMode(RowOutputTextLog.MODE_INSERT);
         rowOut.write(BYTES_INSERT_INTO);
         rowOut.writeString(table.getName().statementName);
         rowOut.write(BYTES_VALUES);
@@ -225,7 +224,7 @@ public class ScriptWriterText extends ScriptWriterBase {
             return;
         }
 
-        if (schemaToLog == currentSession.loggedSchema) {
+        if (!includeTableInit && schemaToLog == currentSession.loggedSchema) {
             return;
         }
 
@@ -261,7 +260,7 @@ public class ScriptWriterText extends ScriptWriterBase {
 
         writeSessionIdAndSchema(session);
         rowOut.reset();
-        ((RowOutputTextLog) rowOut).setMode(RowOutputTextLog.MODE_DELETE);
+        rowOut.setMode(RowOutputTextLog.MODE_DELETE);
         rowOut.write(BYTES_DELETE_FROM);
         rowOut.writeString(table.getName().statementName);
         rowOut.write(BYTES_WHERE);

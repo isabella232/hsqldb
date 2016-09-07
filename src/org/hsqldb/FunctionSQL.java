@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -549,13 +549,17 @@ public class FunctionSQL extends Expression {
      */
     public Object getValue(Session session) {
 
-        Object[] data = new Object[nodes.length];
+        Object[] data = ValuePool.emptyObjectArray;
 
-        for (int i = 0; i < nodes.length; i++) {
-            Expression e = nodes[i];
+        if (nodes.length > 0) {
+            data = new Object[nodes.length];
 
-            if (e != null) {
-                data[i] = e.getValue(session, e.dataType);
+            for (int i = 0; i < nodes.length; i++) {
+                Expression e = nodes[i];
+
+                if (e != null) {
+                    data[i] = e.getValue(session, e.dataType);
+                }
             }
         }
 
@@ -749,9 +753,8 @@ public class FunctionSQL extends Expression {
                         nodes[1].dataType);
 
                 // result type is the same as nodes[1]
-                Object value =
-                    ((NumberType) nodeDataTypes[0])
-                        .modulo(session, data[0], data[1], nodeDataTypes[1]);
+                Object value = ((NumberType) nodeDataTypes[0]).modulo(session,
+                    data[0], data[1], nodeDataTypes[1]);
 
                 return value;
             }
@@ -2037,6 +2040,8 @@ public class FunctionSQL extends Expression {
                     case Tokens.TRAILING :
                         spec = Tokens.T_TRAILING;
                         break;
+
+                    default :
                 }
 
                 sb.append(Tokens.T_TRIM).append('(')                     //
@@ -2105,9 +2110,9 @@ public class FunctionSQL extends Expression {
     public boolean equals(Expression other) {
 
         if (other instanceof FunctionSQL) {
-            if (funcType == ((FunctionSQL) other).funcType) {
-                return super.equals(other);
-            }
+            FunctionSQL o = (FunctionSQL) other;
+
+            return super.equals(other) && funcType == o.funcType;
         }
 
         return false;

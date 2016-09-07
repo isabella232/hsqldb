@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@ import org.hsqldb.lib.Iterator;
 
 /**
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.4
  * @since 2.3.0
  */
 public class DataSpaceManagerBlocks implements DataSpaceManager {
@@ -222,7 +222,7 @@ public class DataSpaceManagerBlocks implements DataSpaceManager {
 
             directorySpaceManager.addFileBlock(filePosition,
                                                filePosition
-                                               + dirBlockCount
+                                               + (long) dirBlockCount
                                                  * fileBlockSize);
             createFileBlocksInDirectory(index, dirBlockCount,
                                         tableIdDirectory);
@@ -444,7 +444,7 @@ public class DataSpaceManagerBlocks implements DataSpaceManager {
         for (int i = blockIndex; i < blockIndex + blockCount; i++) {
             if (directoryIndex != i / blockSize) {
                 if (directory != null) {
-                    directory.setInMemory(false);
+                    directory.keepInMemory(false);
                 }
 
                 directory      = getDirectory(i, true);
@@ -456,7 +456,7 @@ public class DataSpaceManagerBlocks implements DataSpaceManager {
             directory.getTableIdArray()[offset] = tableId;
         }
 
-        directory.setInMemory(false);
+        directory.keepInMemory(false);
     }
 
     public TableSpaceManager getDefaultTableSpace() {
@@ -752,11 +752,6 @@ public class DataSpaceManagerBlocks implements DataSpaceManager {
         int blockIndex     = -1;
         int lastBlockIndex = tableSpace.getFileBlockIndex();
 
-        // test code
-        if (spaceId == tableIdDirectory) {
-            blockIndex = blockIndex;
-        }
-
         if (lastBlockIndex >= 0) {
             ba.initialise(false);
 
@@ -937,9 +932,10 @@ public class DataSpaceManagerBlocks implements DataSpaceManager {
             int freeUnits      = currentBitMap.bitMap.countSetBits();
             int freeBlockUnits = currentBitMap.bitMap.countSetBitsEnd();
 
+            currentBitMap.keepInMemory(false);
+
             if (freeUnits == fileBlockItemCount) {
                 setTable(tableIdEmpty);
-                currentBitMap.keepInMemory(false);
                 emptySpaceList.addUnique(currentBlockIndex);
 
                 released++;
@@ -953,7 +949,6 @@ public class DataSpaceManagerBlocks implements DataSpaceManager {
                 (char) freeBlockUnits;
 
             currentDir.setChanged(true);
-            currentBitMap.keepInMemory(false);
         }
 
         void setTable(int tableId) {

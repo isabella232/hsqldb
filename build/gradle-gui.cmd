@@ -1,6 +1,6 @@
 @echo off
 
-:: $Id$
+:: $Id: gradle-gui.cmd 5036 2012-07-25 22:07:27Z fredt $
 :: Distribution is permitted under the terms of the HSQLDB license.
 :: (c) 2011 The HSQL Development Group
 

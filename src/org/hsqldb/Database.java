@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,8 +67,8 @@ import org.hsqldb.types.Collation;
 public class Database {
 
     int                        databaseID;
-    String                     databaseUniqueName;
-    String                     databaseType;
+    HsqlName                   databaseUniqueName;
+    DatabaseType               databaseType;
     private final String       canonicalPath;
     public HsqlProperties      urlProperties;
     private final String       path;
@@ -95,23 +95,25 @@ public class Database {
      * Defaults are used in version upgrades, but overridden by
      *  databaseProperties or URL properties for new databases.
      */
+    public int                    sqlAvgScale            = 0;
+    public boolean                sqlCharLiteral         = true;
+    public boolean                sqlConcatNulls         = true;
+    public boolean                sqlConvertTruncate     = true;
+    public boolean                sqlDoubleNaN           = true;
     public boolean                sqlEnforceTypes        = false;
     public boolean                sqlEnforceRefs         = false;
     public boolean                sqlEnforceSize         = true;
     public boolean                sqlEnforceNames        = false;
-    public boolean                sqlRegularNames        = true;
     public boolean                sqlEnforceTDCD         = true;
     public boolean                sqlEnforceTDCU         = true;
-    public boolean                sqlTranslateTTI        = true;
-    public boolean                sqlConcatNulls         = true;
-    public boolean                sqlUniqueNulls         = true;
+    public boolean                sqlIgnoreCase          = false;
+    public boolean                sqlLiveObject          = false;
+    public boolean                sqlLongvarIsLob        = false;
     public boolean                sqlNullsFirst          = true;
     public boolean                sqlNullsOrder          = true;
-    public boolean                sqlConvertTruncate     = true;
-    public int                    sqlAvgScale            = 0;
-    public boolean                sqlDoubleNaN           = true;
-    public boolean                sqlLongvarIsLob        = false;
-    public boolean                sqlIgnoreCase          = false;
+    public boolean                sqlRegularNames        = true;
+    public boolean                sqlTranslateTTI        = true;
+    public boolean                sqlUniqueNulls         = true;
     public boolean                sqlSyntaxDb2           = false;
     public boolean                sqlSyntaxMss           = false;
     public boolean                sqlSyntaxMys           = false;
@@ -123,7 +125,7 @@ public class Database {
     private final boolean         shutdownOnNoConnection;
     int                           resultMaxMemoryRows;
 
-    // schema invarient objects
+    // schema invariant objects
     public UserManager     userManager;
     public GranteeManager  granteeManager;
     public HsqlNameManager nameManager;
@@ -171,7 +173,7 @@ public class Database {
      *      combination is illegal or unavailable, or the database files the
      *      name and path resolves to are in use by another process
      */
-    Database(String type, String path, String canonicalPath,
+    Database(DatabaseType type, String path, String canonicalPath,
              HsqlProperties props) {
 
         setState(Database.DATABASE_SHUTDOWN);
@@ -181,7 +183,7 @@ public class Database {
         this.canonicalPath = canonicalPath;
         this.urlProperties = props;
 
-        if (databaseType == DatabaseURL.S_RES) {
+        if (databaseType == DatabaseType.DB_RES) {
             filesInJar    = true;
             filesReadOnly = true;
         }
@@ -217,24 +219,7 @@ public class Database {
         setState(DATABASE_OPENING);
 
         try {
-            lobManager     = new LobManager(this);
-            nameManager    = new HsqlNameManager(this);
-            granteeManager = new GranteeManager(this);
-            userManager    = new UserManager(this);
-            schemaManager  = new SchemaManager(this);
-            persistentStoreCollection =
-                new PersistentStoreCollectionDatabase(this);
-            isReferentialIntegrity = true;
-            sessionManager         = new SessionManager(this);
-            collation              = collation.newDatabaseInstance();
-            dbInfo = DatabaseInformation.newDatabaseInformation(this);
-            txManager              = new TransactionManager2PL(this);
-
-            lobManager.createSchema();
-            sessionManager.getSysLobSession().setSchema(
-                SqlInvariants.LOBS_SCHEMA);
-            schemaManager.setSchemaChangeTimestamp();
-            schemaManager.createSystemTables();
+            createObjectStructures();
 
             // completed metadata
             logger.open();
@@ -247,7 +232,7 @@ public class Database {
 
                 userManager.createFirstUser(username, password);
                 schemaManager.createPublicSchema();
-                logger.checkpoint(false);
+                logger.checkpoint(null, false, false);
             }
 
             lobManager.open();
@@ -275,7 +260,7 @@ public class Database {
     }
 
     /**
-     * Clears the data structuress, making them elligible for garbage collection.
+     * Clears the data structures, making them elligible for garbage collection.
      */
     void clearStructures() {
 
@@ -302,6 +287,31 @@ public class Database {
         timeoutRunner    = null;
     }
 
+    public void createObjectStructures() {
+
+        lobManager     = new LobManager(this);
+        nameManager    = new HsqlNameManager(this);
+        granteeManager = new GranteeManager(this);
+        userManager    = new UserManager(this);
+        schemaManager  = new SchemaManager(this);
+        persistentStoreCollection =
+            new PersistentStoreCollectionDatabase(this);
+        databaseUniqueName = nameManager.newHsqlName("", false,
+                SchemaObject.DATABASE);
+
+        isReferentialIntegrity = true;
+        sessionManager         = new SessionManager(this);
+        collation              = Collation.newDatabaseInstance();
+        dbInfo = DatabaseInformation.newDatabaseInformation(this);
+        txManager              = new TransactionManager2PL(this);
+
+        lobManager.createSchema();
+        sessionManager.getSysLobSession().setSchema(SqlInvariants.LOBS_SCHEMA);
+        schemaManager.setSchemaChangeTimestamp();
+        schemaManager.createSystemTables();
+
+    }
+
     /**
      *  Returns the database ID.
      */
@@ -309,21 +319,25 @@ public class Database {
         return this.databaseID;
     }
 
-    /**
-     * Returns a unique String identifier for the database.
-     */
-    public String getUniqueName() {
+    public HsqlName getName() {
         return databaseUniqueName;
     }
 
-    public void setUniqueName(String name) {
-        databaseUniqueName = name;
+    /**
+     * Returns a unique String identifier for the database.
+     */
+    public String getNameString() {
+        return databaseUniqueName.name;
+    }
+
+    public void setDatabaseName(String name) {
+        databaseUniqueName.rename(name, false);
     }
 
     /**
      *  Returns the type of the database: "mem", "file", "res"
      */
-    public String getType() {
+    public DatabaseType getType() {
         return databaseType;
     }
 
@@ -435,6 +449,10 @@ public class Database {
         return granteeManager;
     }
 
+    public void setLiveObject(boolean mode) {
+        sqlLiveObject = mode;
+    }
+
     /**
      *  Sets the isReferentialIntegrity attribute.
      */
@@ -498,6 +516,10 @@ public class Database {
 
     public void setNullsOrder(boolean mode) {
         sqlNullsOrder = mode;
+    }
+
+    public void setCharacterLiteral(boolean mode) {
+        sqlCharLiteral = mode;
     }
 
     public void setConcatNulls(boolean mode) {
@@ -650,7 +672,7 @@ public class Database {
         DatabaseManager.removeDatabase(this);
 
         // todo - when hsqldb.sql. framework logging is supported, add another call
-        FrameworkLogger.clearLoggers("hsqldb.db." + getUniqueName());
+        FrameworkLogger.clearLoggers("hsqldb.db." + getNameString());
 
         if (he != null) {
             throw he;
@@ -740,77 +762,62 @@ public class Database {
         // properties
         String[] list = logger.getPropertiesSQL(indexRoots);
 
-        addRows(r, list);
+        r.addRows(list);
 
         list = getSettingsSQL();
 
-        addRows(r, list);
+        r.addRows(list);
 
         list = getGranteeManager().getSQL();
 
-        addRows(r, list);
+        r.addRows(list);
 
         // schemas and schema objects such as tables, sequences, etc.
         list = schemaManager.getSQLArray();
 
-        addRows(r, list);
+        r.addRows(list);
 
         // optional comments on tables etc.
         list = schemaManager.getCommentsArray();
 
-        addRows(r, list);
+        r.addRows(list);
 
         list = schemaManager.getTableSpaceSQL();
 
-        addRows(r, list);
+        r.addRows(list);
 
         // index roots
         if (indexRoots) {
             list = schemaManager.getIndexRootsSQL();
 
-            addRows(r, list);
+            r.addRows(list);
         }
 
         // text headers - readonly - clustered
         list = schemaManager.getTablePropsSQL(!indexRoots);
 
-        addRows(r, list);
+        r.addRows(list);
 
         // password complexity
         list = getUserManager().getAuthenticationSQL();
 
-        addRows(r, list);
+        r.addRows(list);
 
         // user session start schema names
         list = getUserManager().getInitialSchemaSQL();
 
-        addRows(r, list);
+        r.addRows(list);
 
         // grantee rights
-        list = getGranteeManager().getRightstSQL();
+        list = getGranteeManager().getRightsSQL();
 
-        addRows(r, list);
+        r.addRows(list);
 
         return r;
     }
 
-    private static void addRows(Result r, String[] sql) {
-
-        if (sql == null) {
-            return;
-        }
-
-        for (int i = 0; i < sql.length; i++) {
-            String[] s = new String[1];
-
-            s[0] = sql[i];
-
-            r.initialiseNavigator().add(s);
-        }
-    }
-
     public String getURI() {
-        return databaseType + canonicalPath;
+        return databaseType.value() + canonicalPath;
     }
 
     public String getCanonicalPath() {

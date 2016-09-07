@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,7 @@ public interface ErrorCode {
     int M_HsqlProperties_load       = 28;          // properties name is null or empty
 
     //
-    int M_TEXT_SOURCE_FIELD_ERROR      = 41;       // Error in text source field
+    int M_TEXT_SOURCE_FIELD_ERROR      = 41;       // S1000 Error in text source field
     int M_TextCache_opening_file_error = 42;       // openning file: $$ error: $$
     int M_TextCache_closing_file_error = 43;       // closing file: $$ error: $$
     int M_TextCache_purging_file_error = 44;       // purging file: $$ error: $$
@@ -83,17 +83,18 @@ public interface ErrorCode {
 
     // SQLSTATE definitions
     // successful completion
-    int S_00000 = 0000;                            // successful completion
+    int S_00000 = 0;                               // successful completion
 
     //
-    int U_S0500 = 201;
+    int U_S0500 = 201;                             // unsupported internal operation
     int X_S0501 = 301;                             // no file name specified for source // TEXT_TABLE_SOURCE_FILENAME = 172
     int X_S0502 = 302;                             // no value specified for field // TEXT_TABLE_SOURCE_VALUE_MISSING= 173
     int X_S0503 = 303;                             // zero-length separator // TEXT_TABLE_SOURCE_SEPARATOR = 174
-    int X_S0504 = 304;
+    int X_S0504 = 304;                             // length of text quote character must be 1
     int X_S0521 = 320;                             // operation is not allowed on text table with data
-    int X_S0522 = 321;                             // invalid statemnet - text table required
-    int X_S0531 = 331;                             // encode / decode error:
+    int X_S0522 = 321;                             // invalid statement - text table required
+    int X_S0531 = 331;                             // text file encode / decode error:
+    int X_S0532 = 332;                             // UTF-16 encoding string required
 
     // HSQLDB authentication
     int PASSWORD_COMPLEXITY = 391;                 // S1000 password complexity
@@ -137,6 +138,7 @@ public interface ErrorCode {
     int DATA_FILE_IN_USE     = 469;                // S1000 Data file is in use
     int BACKUP_ERROR         = 470;                // S1000 Backup error
     int DATA_CACHE_IS_FULL   = 471;                // S1000 Data cache size limit is reached
+    int ERROR_IN_LOG_FILE    = 472;                // S1000 problem with log file
 
     // HSQLDB Text tables
     int TEXT_TABLE_UNKNOWN_DATA_SOURCE = 481;      // S1000 The table's data source for has not been defined
@@ -231,8 +233,8 @@ public interface ErrorCode {
     int X_0F001 = 1801;                            // locator exception: invalid specification
 
     // HSQLDB locator
-    int X_0F502 = 3474;                            // lob is no longer valid
-    int X_0F503 = 3475;                            // lob stream is closed
+    int X_0F502 = 1852;                            // lob is no longer valid
+    int X_0F503 = 1853;                            // lob stream is closed
 
     // resignal when handler not active - xxxx
     int X_0K000 = 1900;                            // resignal when handler not active
@@ -353,11 +355,13 @@ public interface ErrorCode {
     int X_22026 = 3459;                            // data exception: string data, length mismatch - 200x
     int X_22027 = 3460;                            // data exception: trim error - 200x
     int X_22029 = 3461;                            // data exception: noncharacter in UCS string - 200x
+    int X_22020 = 3462;                            // data exception: invalid period value - 200x
 
     // HSQLDB data exception
     int X_22501 = 3471;                            // value cannot be converted to target type
     int X_22511 = 3472;                            // invalid function argument
     int X_22521 = 3473;                            // object serialization failure
+    int X_22522 = 3474;                            // query execution reached limit of recursion
 
     // 04-PSM - xxxx
     int X_2202A = 3488;                            // data exception: null value in field reference
@@ -372,7 +376,7 @@ public interface ErrorCode {
     int X_23001 = 3501;                            // integrity constraint violation: restrict violation - 200x
     int X_23502 = 10;                              // integrity constraint violation: NOT NULL check constraint
     int X_23503 = 177;                             // integrity constraint violation: foreign key no parent
-    int X_23504 = 8;                               // integrity constraint violation: foreing key no action
+    int X_23504 = 8;                               // integrity constraint violation: foreign key no action
     int X_23505 = 104;                             // integrity constraint violation: unique constraint or index
     int X_23513 = 157;                             // integrity constraint violation: check constraint
 
@@ -517,7 +521,7 @@ public interface ErrorCode {
     int X_42512 = 5512;                            // invalid expression in CHECK or GENERATED clause
     int X_42513 = 5513;                            // assignment to generated column
 
-    // constraint defintition issues
+    // constraint definition issues
     int X_42520 = 5520;                            // SET NULL requires nullable column
     int X_42521 = 5521;                            // SET DEFAULT requires column default expression for
     int X_42522 = 5522;                            // a UNIQUE constraint already exists on the set of columns
@@ -549,8 +553,8 @@ public interface ErrorCode {
     int X_42545 = 5545;                            // INSERT, UPDATE, DELETE or TRUNCATE not permitted for table or view
     int X_42546 = 5546;                            // number of target columns does not match that of query expression
     int X_42547 = 5547;                            // merge when matched already used
-    int X_42548 = 5548;                            // merge when not matched altready used
-    int X_42549 = 5549;                            // LIMIT, OFFSET or FETCH altready used
+    int X_42548 = 5548;                            // merge when not matched already used
+    int X_42549 = 5549;                            // LIMIT, OFFSET or FETCH already used
 
     //
     int X_42551 = 5551;                            // too many identifier parts
@@ -584,7 +588,7 @@ public interface ErrorCode {
     // lexical elements
     int X_42581 = 5581;                            // unexpected token
     int X_42582 = 5582;                            // unknown token
-    int X_42583 = 5583;                            // malforemd quoted identifier
+    int X_42583 = 5583;                            // malformed quoted identifier
     int X_42584 = 5584;                            // malformed string
     int X_42585 = 5585;                            // malformed numeric constant
     int X_42586 = 5586;                            // malformed unicode string

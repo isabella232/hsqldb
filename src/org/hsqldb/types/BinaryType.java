@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2011, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,10 +44,10 @@ import org.hsqldb.lib.StringConverter;
  * Type implementation for BINARY, VARBINARY and (part) BLOB.<p>
 
  * SQL:2008 Standard  specifies silent truncation of zero bytes at the end of the
- * binary strings used for assignment and contatenation.<p>
+ * binary strings used for assignment and concatenation.<p>
  *
  * * A binary string of type BINARY VALYING and BLOB when assigned to a column
- * of similar type but shorter maximum length.<p?
+ * of similar type but shorter maximum length.<p>
  *
  * * The Second operand of a concatenation when the length of the result exceeds
  * the maximum implementation-dependent length of BINARY VARYING and BLOB
@@ -60,7 +60,7 @@ import org.hsqldb.lib.StringConverter;
  * In most real-world use-cases, all the bytes of variable-length binary values
  * stored in a database are significant and should not be discarded.<p>
  *
- * HSQLDB follows the Standard completely, despite this inadequecy.<p>
+ * HSQLDB follows the Standard completely, despite this inadequacy.<p>
  *
  * Comparison of binary values follows the Standard. When two values are not
  * the same length and all the bytes of the shorter value equal the initial
@@ -148,7 +148,7 @@ public class BinaryType extends Type {
     }
 
     /**
-     * relaxes the SQL standard list to avoid problems with covnersion of
+     * relaxes the SQL standard list to avoid problems with conversion of
      * literals and java method parameter type issues
      */
     public int precedenceDegree(Type other) {
@@ -236,6 +236,9 @@ public class BinaryType extends Type {
                                                     : getBinaryType(
                                                     other.typeCode, precision);
 
+            case Types.SQL_GUID :
+                return other;
+
             default :
                 throw Error.error(ErrorCode.X_42562);
         }
@@ -264,6 +267,7 @@ public class BinaryType extends Type {
                 newType      = this;
                 break;
 
+            case Types.SQL_GUID :
             case Types.SQL_BINARY :
                 newType = this;
                 break;
@@ -421,6 +425,7 @@ public class BinaryType extends Type {
 
                 break;
             }
+            case Types.SQL_GUID :
             case Types.SQL_BINARY :
             case Types.SQL_VARBINARY :
             case Types.SQL_BLOB :
@@ -551,6 +556,11 @@ public class BinaryType extends Type {
                                                             : -1;
                 }
 
+                if (otherType.typeCode == Types.SQL_GUID) {
+                    return precision >= otherType.precision ? 0
+                                                            : -1;
+                }
+
                 return -1;
             }
             case Types.SQL_BLOB : {
@@ -563,9 +573,13 @@ public class BinaryType extends Type {
             }
             case Types.SQL_BIT :
             case Types.SQL_BINARY : {
-                return otherType.typeCode == typeCode
-                       && precision == otherType.precision ? 0
-                                                           : -1;
+                if (otherType.typeCode == typeCode
+                        || otherType.typeCode == Types.SQL_GUID) {
+                    return precision == otherType.precision ? 0
+                                                            : -1;
+                }
+
+                return -1;
             }
             case Types.SQL_BIT_VARYING : {
                 return otherType.typeCode == typeCode
@@ -584,7 +598,7 @@ public class BinaryType extends Type {
             return -1L;
         }
 
-        long otherLength = ((BlobData) data).length(session);
+        long otherLength = data.length(session);
 
         if (offset + otherLength > data.length(session)) {
             return -1;
@@ -628,8 +642,7 @@ public class BinaryType extends Type {
         length = end - offset;
 
         // change method signature to take long
-        byte[] bytes = ((BlobData) data).getBytes(session, offset,
-            (int) length);
+        byte[] bytes = data.getBytes(session, offset, (int) length);
 
         return new BinaryData(bytes, false);
     }
@@ -651,13 +664,13 @@ public class BinaryType extends Type {
             return null;
         }
 
-        long length = ((BlobData) data).length(session);
+        long length = data.length(session);
 
         if (length > Integer.MAX_VALUE) {
             throw Error.error(ErrorCode.X_22027);
         }
 
-        byte[] bytes    = ((BlobData) data).getBytes(session, 0, (int) length);
+        byte[] bytes    = data.getBytes(session, 0, (int) length);
         int    endindex = bytes.length;
 
         if (trailing) {
@@ -703,7 +716,7 @@ public class BinaryType extends Type {
         }
 
         if (!hasLength) {
-            length = ((BlobData) overlay).length(session);
+            length = overlay.length(session);
         }
 
         switch (typeCode) {

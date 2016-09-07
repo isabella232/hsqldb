@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2011, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@ import org.hsqldb.lib.InOutUtil;
  * requirement for all classes for objects stored in OTHER columns to be
  * available on the runtime class path of the engine. <p>
  *
- * In 1.7.2, the introduction of real preprared statement support allows us
+ * In 1.7.2, the introduction of real prepared statement support allows us
  * revert to the pre 1.7.0 behaviour without the artificial limitations. <p>
  *
  * The classes for stored objects need not be available to open and operate
@@ -60,7 +60,7 @@ import org.hsqldb.lib.InOutUtil;
  * PreparedStatement variables.
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.0.1
+ * @version 2.3.4
  * @since 1.7.2
  */
 public class JavaObjectData {
@@ -104,9 +104,9 @@ public class JavaObjectData {
      * This method is called from classes implementing the JDBC
      * interfaces. Inside the engine it is used for conversion from a value of
      * type OTHER to another type. It will throw if the OTHER is an instance
-     * of a classe that is not available.
+     * of a class that is not available.
      */
-    public Serializable getObject() {
+    public Object getObject() {
 
         try {
             return InOutUtil.deserialize(data);
@@ -116,9 +116,9 @@ public class JavaObjectData {
     }
 
     /**
-     * Returns String repsentation of this object.
+     * Returns String representation of this object.
      *
-     * @return a String represntation of this object.
+     * @return a String representation of this object.
      */
     public String toString() {
         return super.toString();

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,7 +68,6 @@ import org.hsqldb.error.ErrorCode;
 import org.hsqldb.lib.IntValueHashMap;
 import org.hsqldb.lib.StringInputStream;
 import org.hsqldb.navigator.RowSetNavigator;
-import org.hsqldb.navigator.RowSetNavigatorClient;
 import org.hsqldb.result.Result;
 import org.hsqldb.result.ResultConstants;
 import org.hsqldb.result.ResultMetaData;
@@ -84,7 +83,7 @@ import org.hsqldb.types.TimestampData;
 import org.hsqldb.types.Type;
 import org.hsqldb.types.Types;
 
-/* $Id$ */
+/* $Id: JDBCResultSet.java 5571 2016-03-24 01:01:45Z fredt $ */
 
 //boucherb@users 20051207 - patch 1.9.0 - initial JDBC 4.0 support work
 //fredt@users    20060431 - patch 1.9.0 rewrite with RowSetNavigator
@@ -203,7 +202,7 @@ import org.hsqldb.types.Types;
  * to retrieve the next result from a sequence of multiple results.
  *
  * <P>The number, types and properties of a <code>ResultSet</code>
- * object's columns are provided by the <code>ResulSetMetaData</code>
+ * object's columns are provided by the <code>ResultSetMetaData</code>
  * object returned by the <code>ResultSet.getMetaData</code> method.
  * <!-- end generic documentation -->
  *
@@ -255,7 +254,7 @@ import org.hsqldb.types.Types;
  *
  * A result set is updatable if the SELECT statement
  * is updatable. This includes SELECT from TABLE and updatable VIEW objects.
- * An updatable SELECT statement has a single uderlying table or view.
+ * An updatable SELECT statement has a single underlying table or view.
  * HSQLDB supports both scrollable and forward-only result sets for updatability.
  *
  * <pre class="JavaCodeExample">
@@ -316,7 +315,7 @@ import org.hsqldb.types.Types;
  *
  * @author Campbell Burnet (boucherb@users dot sourceforge.net)
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.0
+ * @version 2.3.4
  * @since HSQLDB 1.9.0
  * @revised JDK 7, HSQLDB 2.0.1
  */
@@ -916,7 +915,7 @@ public class JDBCResultSet implements ResultSet {
      * {@link #getString(int) getString},
      * {@link #getUnicodeStream(int) getUnicodeStream} (<b>deprecated</b>)
      * and new to 1.7.0: {@link #getCharacterStream(int) getCharacterStream}
-     * (now prefered over the deprecated getUnicodeStream alternative).
+     * (now preferred over the deprecated getUnicodeStream alternative).
      * </div>
      * <!-- end release-specific documentation -->
      *
@@ -4297,7 +4296,7 @@ public class JDBCResultSet implements ResultSet {
      * <code>null</code>.
      * <!-- end generic documentation -->
      *
-     * @return the <code>Statment</code> object that produced
+     * @return the <code>Statement</code> object that produced
      * this <code>ResultSet</code> object or <code>null</code>
      * if the result set was produced some other way
      * @exception SQLException if a database access error occurs
@@ -4815,7 +4814,7 @@ public class JDBCResultSet implements ResultSet {
             return null;
         }
 
-        long millis = DateTimeType.normaliseTime(t.getSeconds()) * 1000;
+        long millis = DateTimeType.normaliseTime(t.getSeconds()) * 1000L;
 
         if (!resultMetaData.columnTypes[--columnIndex]
                 .isDateTimeTypeWithZone()) {
@@ -5016,12 +5015,9 @@ public class JDBCResultSet implements ResultSet {
      * this method
      * @since JDK 1.4, HSQLDB 1.7.0
      */
-//#ifdef JAVA4
     public java.net.URL getURL(int columnIndex) throws SQLException {
         throw JDBCUtil.notSupported();
     }
-
-//#endif JAVA4
 
     /**
      * <!-- start generic documentation -->
@@ -5052,12 +5048,9 @@ public class JDBCResultSet implements ResultSet {
      * this method
      * @since JDK 1.4, HSQLDB 1.7.0
      */
-//#ifdef JAVA4
     public java.net.URL getURL(String columnLabel) throws SQLException {
         throw JDBCUtil.notSupported();
     }
-
-//#endif JAVA4
 
     /**
      * <!-- start generic documentation -->
@@ -5087,13 +5080,10 @@ public class JDBCResultSet implements ResultSet {
      * this method
      * @since JDK 1.4, HSQLDB 1.7.0
      */
-//#ifdef JAVA4
     public void updateRef(int columnIndex,
                           java.sql.Ref x) throws SQLException {
         throw JDBCUtil.notSupported();
     }
-
-//#endif JAVA4
 
     /**
      * <!-- start generic documentation -->
@@ -5123,13 +5113,10 @@ public class JDBCResultSet implements ResultSet {
      * this method
      * @since JDK 1.4, HSQLDB 1.7.0
      */
-//#ifdef JAVA4
     public void updateRef(String columnLabel,
                           java.sql.Ref x) throws SQLException {
         throw JDBCUtil.notSupported();
     }
-
-//#endif JAVA4
 
     /**
      * <!-- start generic documentation -->
@@ -5157,15 +5144,12 @@ public class JDBCResultSet implements ResultSet {
      * this method
      * @since JDK 1.4, HSQLDB 1.7.0
      */
-//#ifdef JAVA4
     public void updateBlob(int columnIndex,
                            java.sql.Blob x) throws SQLException {
         startUpdate(columnIndex);
         preparedStatement.setBlobParameter(columnIndex, x);
     }
 
-//#endif JAVA4
-
     /**
      * <!-- start generic documentation -->
      * Updates the designated column with a <code>java.sql.Blob</code> value.
@@ -5192,7 +5176,6 @@ public class JDBCResultSet implements ResultSet {
      * this method
      * @since JDK 1.4, HSQLDB 1.7.0
      */
-//#ifdef JAVA4
     public void updateBlob(String columnLabel,
                            java.sql.Blob x) throws SQLException {
 
@@ -5201,8 +5184,6 @@ public class JDBCResultSet implements ResultSet {
         updateBlob(columnIndex, x);
     }
 
-//#endif JAVA4
-
     /**
      * <!-- start generic documentation -->
      * Updates the designated column with a <code>java.sql.Clob</code> value.
@@ -5229,14 +5210,11 @@ public class JDBCResultSet implements ResultSet {
      * this method
      * @since JDK 1.4, HSQLDB 1.7.0
      */
-//#ifdef JAVA4
     public void updateClob(int columnIndex,
                            java.sql.Clob x) throws SQLException {
         startUpdate(columnIndex);
         preparedStatement.setClobParameter(columnIndex, x);
     }
-
-//#endif JAVA4
 
     /**
      * <!-- start generic documentation -->
@@ -5266,7 +5244,6 @@ public class JDBCResultSet implements ResultSet {
      * this method
      * @since JDK 1.4, HSQLDB 1.7.0
      */
-//#ifdef JAVA4
     public void updateClob(String columnLabel,
                            java.sql.Clob x) throws SQLException {
 
@@ -5275,8 +5252,6 @@ public class JDBCResultSet implements ResultSet {
         updateClob(columnIndex, x);
     }
 
-//#endif JAVA4
-
     /**
      * <!-- start generic documentation -->
      * Updates the designated column with a <code>java.sql.Array</code> value.
@@ -5305,14 +5280,11 @@ public class JDBCResultSet implements ResultSet {
      * this method
      * @since JDK 1.4, HSQLDB 1.7.0
      */
-//#ifdef JAVA4
     public void updateArray(int columnIndex,
                             java.sql.Array x) throws SQLException {
         startUpdate(columnIndex);
         preparedStatement.setParameter(columnIndex, x);
     }
-
-//#endif JAVA4
 
     /**
      * <!-- start generic documentation -->
@@ -5344,7 +5316,6 @@ public class JDBCResultSet implements ResultSet {
      * this method
      * @since JDK 1.4, HSQLDB 1.7.0
      */
-//#ifdef JAVA4
     public void updateArray(String columnLabel,
                             java.sql.Array x) throws SQLException {
 
@@ -5353,7 +5324,6 @@ public class JDBCResultSet implements ResultSet {
         updateArray(columnIndex, x);
     }
 
-//#endif JAVA4
     //------------------------- JDBC 4.0 -----------------------------------
 
     /**
@@ -7122,9 +7092,6 @@ public class JDBCResultSet implements ResultSet {
      */
     boolean isScrollable;
 
-    /** The concurrency of this result. */
-    boolean isReadOnly;
-
     /** The updatability of this result. */
     boolean isUpdatable;
 
@@ -7523,16 +7490,13 @@ public class JDBCResultSet implements ResultSet {
         columnCount     = resultMetaData.getColumnCount();
 
         if (conn != null) {
-            if (conn.clientProperties != null) {
-                translateTTIType = conn.clientProperties.isPropertyTrue(
-                    HsqlDatabaseProperties.jdbc_translate_tti_types);
-            }
+            translateTTIType = conn.isTranslateTTIType;
         }
     }
 
     /**
      * Factory method returns a new <code>JDBCResultSet</code> object for
-     * use with user defined functions that retrun a ResultSet object.
+     * use with user defined functions that return a ResultSet object.
      * See <code>org.hsqldb.jdbc.JDBCArrayBasic</code> for usage example.
      * <p>
      *
@@ -7545,7 +7509,7 @@ public class JDBCResultSet implements ResultSet {
         return new JDBCResultSetBasic(r, metaData);
     }
 
-    public static JDBCResultSet newEptyResultSet() {
+    public static JDBCResultSet newEmptyResultSet() {
         ResultMetaData md = ResultMetaData.newResultMetaData(1);
 
         ColumnBase column =

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: function.sql 4847 2011-12-27 15:23:12Z unsaved $
  *
  * Tests SqlTool functions.
  */

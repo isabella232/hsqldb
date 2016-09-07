@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@ import org.hsqldb.types.Type;
  * Implementation of Statement for INSERT statements.<p>
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.4
  * @since 1.9.0
  */
 public class StatementInsert extends StatementDML {
@@ -85,7 +85,7 @@ public class StatementInsert extends StatementDML {
         this.specialAction      = specialAction;
 
         setupChecks();
-        setDatabseObjects(session, compileContext);
+        setDatabaseObjects(session, compileContext);
         checkAccessRights(session);
 
         isSimpleInsert = insertExpression != null
@@ -99,8 +99,11 @@ public class StatementInsert extends StatementDML {
      */
     StatementInsert(Session session, Table targetTable, int[] insertColumnMap,
                     boolean[] insertCheckColumns,
-                    QueryExpression queryExpression, int specialAction,
-                    int override, CompileContext compileContext) {
+                    QueryExpression queryExpression,
+                    Expression[] updateExpressions,
+                    boolean[] updateCheckColumns, int[] updateColumnMap,
+                    Expression[] targets, int specialAction, int override,
+                    CompileContext compileContext) {
 
         super(StatementTypes.INSERT, StatementTypes.X_SQL_DATA_CHANGE,
               session.getCurrentSchemaHsqlName());
@@ -113,15 +116,19 @@ public class StatementInsert extends StatementDML {
         this.insertCheckColumns = insertCheckColumns;
         this.queryExpression    = queryExpression;
         this.overrideUserValue  = override;
+        this.updateCheckColumns = updateCheckColumns;
+        this.updateExpressions  = updateExpressions;
+        this.updateColumnMap    = updateColumnMap;
+        this.targets            = targets;
         this.specialAction      = specialAction;
 
         setupChecks();
-        setDatabseObjects(session, compileContext);
+        setDatabaseObjects(session, compileContext);
         checkAccessRights(session);
     }
 
     /**
-     * Executes an INSERT_SELECT or INSERT_VALUESstatement.  It is assumed that
+     * Executes an INSERT_SELECT or INSERT_VALUES statement.  It is assumed that
      * the argument is of the correct type.
      *
      * @return the result of executing the statement
@@ -155,7 +162,7 @@ public class StatementInsert extends StatementDML {
         if (specialAction != StatementInsert.isNone) {
             while (newDataNavigator.hasNext()) {
                 boolean  remove = false;
-                Object[] data   = (Object[]) newDataNavigator.getNext();
+                Object[] data   = newDataNavigator.getNext();
 
                 for (int i = 0, size = baseTable.constraintList.length;
                         i < size; i++) {
@@ -186,14 +193,9 @@ public class StatementInsert extends StatementDML {
                                 break;
                             }
 
-                            if (specialAction == StatementInsert.isReplace) {
-                                changeNavigator.addRow(
-                                    session, row, data,
-                                    baseTable.getColumnTypes(),
-                                    baseTable.defaultColumnMap);
-                            } else {
-                                changeNavigator.addRow(row);
-                            }
+                            changeNavigator.addRow(session, row, data,
+                                                   baseTable.getColumnTypes(),
+                                                   baseTable.defaultColumnMap);
 
                             count++;
                         }
@@ -206,21 +208,19 @@ public class StatementInsert extends StatementDML {
                     newDataNavigator.removeCurrent();
                 }
             }
-
-            if (specialAction != StatementInsert.isUpdate
-                    && changeNavigator != null) {
-                count = update(session, baseTable, changeNavigator, null);
-
-                changeNavigator.endMainDataSet();
-                newDataNavigator.beforeFirst();
-            }
         }
 
-        if (specialAction == StatementInsert.isUpdate
+        if (specialAction == StatementInsert.isReplace
                 && changeNavigator != null) {
+            count = update(session, baseTable, changeNavigator, null);
+
+            changeNavigator.endMainDataSet();
+        } else if (specialAction == StatementInsert.isUpdate
+                   && changeNavigator != null) {
             Type[] colTypes = baseTable.getColumnTypes();
 
-            session.sessionContext.setRangeIterator(changeNavigator);
+            session.sessionContext.setRangeIterator(
+                changeNavigator.getUpdateRowIterator());
 
             while (changeNavigator.next()) {
                 session.sessionData.startRowProcessing();
@@ -229,14 +229,9 @@ public class StatementInsert extends StatementDML {
                 Object[] data = row.getData();
                 Object[] newData;
 
-                if (specialAction == StatementInsert.isReplace) {
-                    newData = baseTable.getNewRowData(session);
-                } else {
-                    newData = getUpdatedData(session, targets, baseTable,
-                                             updateColumnMap,
-                                             updateExpressions, colTypes,
-                                             data);
-                }
+                newData = getUpdatedData(session, targets, baseTable,
+                                         updateColumnMap, updateExpressions,
+                                         colTypes, data);
 
                 changeNavigator.addUpdate(row, newData, updateColumnMap);
 
@@ -282,14 +277,15 @@ public class StatementInsert extends StatementDML {
         int[]  columnMap = insertColumnMap;
 
         //
-        Result                result = queryExpression.getResult(session, 0);
-        RowSetNavigator       nav         = result.initialiseNavigator();
-        Type[]                sourceTypes = result.metaData.columnTypes;
-        RowSetNavigatorClient newData     = new RowSetNavigatorClient(2);
+        Result          result      = queryExpression.getResult(session, 0);
+        RowSetNavigator nav         = result.initialiseNavigator();
+        Type[]          sourceTypes = result.metaData.columnTypes;
+        RowSetNavigatorClient newData =
+            new RowSetNavigatorClient(nav.getSize());
 
         while (nav.hasNext()) {
             Object[] data       = baseTable.getNewRowData(session);
-            Object[] sourceData = (Object[]) nav.getNext();
+            Object[] sourceData = nav.getNext();
 
             for (int i = 0; i < columnMap.length; i++) {
                 int j = columnMap[i];

@@ -36,7 +36,7 @@ import org.hsqldb.jdbc.JDBCConnection;
 import java.sql.SQLException;
 import java.sql.Savepoint;
 
-// @(#)$Id$
+// @(#)$Id: JDBCXAConnectionWrapper.java 5026 2012-07-14 20:02:27Z fredt $
 
 /**
  * This is a wrapper class for JDBCConnection objects (not java.sql.XAConnection

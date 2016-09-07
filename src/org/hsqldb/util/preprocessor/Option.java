@@ -31,7 +31,7 @@
 
 package org.hsqldb.util.preprocessor;
 
-/* $Id$ */
+/* $Id: Option.java 610 2008-12-22 15:54:18Z unsaved $ */
 
 /**
  * Static methods and constants to decode preprocessor options.

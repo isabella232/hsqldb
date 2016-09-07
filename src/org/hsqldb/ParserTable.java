@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,10 +46,9 @@ import org.hsqldb.types.Types;
  * Parser for SQL table definition
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.4
  * @since 1.9.0
  */
-
 public class ParserTable extends ParserDML {
 
     ParserTable(Session session, Scanner scanner) {
@@ -58,24 +57,8 @@ public class ParserTable extends ParserDML {
 
     StatementSchema compileCreateTable(int type) {
 
-        boolean ifNot = false;
-
-        if (token.tokenType == Tokens.IF) {
-            int position = getPosition();
-
-            read();
-
-            if (token.tokenType == Tokens.NOT) {
-                read();
-                readThis(Tokens.EXISTS);
-
-                ifNot = true;
-            } else {
-                rewind(position);
-            }
-        }
-
-        HsqlName name = readNewSchemaObjectName(SchemaObject.TABLE, false);
+        boolean  ifNot = readIfNotExists();
+        HsqlName name  = readNewSchemaObjectName(SchemaObject.TABLE, false);
 
         name.setSchemaIfNull(session.getCurrentSchemaHsqlName());
 
@@ -109,14 +92,14 @@ public class ParserTable extends ParserDML {
             tempIndexes);
 
         if (!isTable) {
-            return this.compileCreateTableAsSubqueryDefinition(table);
+            return compileCreateTableAsSubqueryDefinition(table);
         }
 
         readTableOnCommitClause(table);
 
         if (database.sqlSyntaxMys) {
             if (readIfThis(Tokens.COMMENT)) {
-                readIfThis(Tokens.EQUALS);
+                readIfThis(Tokens.EQUALS_OP);
 
                 String comment = readQuotedString();
 
@@ -133,8 +116,8 @@ public class ParserTable extends ParserDML {
             HsqlName   name = c.getMainTableName();
 
             if (name != null) {
-                Table t = database.schemaManager.findUserTable(null,
-                    name.name, name.schema.name);
+                Table t = database.schemaManager.findUserTable(name.name,
+                    name.schema.name);
 
                 if (t != null && !t.isTemp()) {
                     names.add(table.getName());
@@ -162,12 +145,10 @@ public class ParserTable extends ParserDML {
 
         readThis(Tokens.OPENBRACKET);
 
-        {
-            Constraint c = new Constraint(null, null,
-                                          SchemaObject.ConstraintTypes.TEMP);
+        Constraint c = new Constraint(null, null,
+                                      SchemaObject.ConstraintTypes.TEMP);
 
-            tempConstraints.add(c);
-        }
+        tempConstraints.add(c);
 
         boolean start     = true;
         boolean startPart = true;
@@ -565,9 +546,8 @@ public class ParserTable extends ParserDML {
         if (mainTableName == table.getName()) {
             c.core.mainTable = table;
         } else {
-            Table mainTable =
-                session.database.schemaManager.findUserTable(session,
-                    mainTableName.name, mainTableName.schema.name);
+            Table mainTable = session.database.schemaManager.findUserTable(
+                mainTableName.name, mainTableName.schema.name);
 
             if (mainTable == null) {
                 if (constraintList == null) {
@@ -670,7 +650,7 @@ public class ParserTable extends ParserDML {
                     break;
 
                 case Tokens.PARTIAL :
-                    throw super.unsupportedFeature();
+                    throw unsupportedFeature();
                 case Tokens.FULL :
                     read();
 
@@ -792,8 +772,8 @@ public class ParserTable extends ParserDML {
 
         checkIsSchemaObjectName();
 
-        Table table = database.schemaManager.findUserTable(session,
-            token.tokenString, schema.name);
+        Table table = database.schemaManager.findUserTable(token.tokenString,
+            schema.name);
 
         if (table == null) {
             name = database.nameManager.newHsqlName(schema, token.tokenString,
@@ -975,8 +955,7 @@ public class ParserTable extends ParserDML {
                         isIdentity = true;
                     } else if (token.tokenType == Tokens.OPENBRACKET) {
                         if (!generatedAlways) {
-                            throw super.unexpectedTokenRequire(
-                                Tokens.T_IDENTITY);
+                            throw unexpectedTokenRequire(Tokens.T_IDENTITY);
                         }
 
                         isGenerated = true;
@@ -990,7 +969,7 @@ public class ParserTable extends ParserDML {
                         if (token.namePrefix != null) {
                             if (!token.namePrefix.equals(
                                     table.getSchemaName().name)) {
-                                throw super.unexpectedToken(token.namePrefix);
+                                throw unexpectedToken(token.namePrefix);
                             }
                         }
 
@@ -1095,6 +1074,7 @@ public class ParserTable extends ParserDML {
                 new Constraint(constName, set,
                                SchemaObject.ConstraintTypes.PRIMARY_KEY);
 
+            c.setSimpleIdentityPK();
             constraintList.set(0, c);
             column.setPrimaryKey(true);
         }
@@ -1141,7 +1121,7 @@ public class ParserTable extends ParserDML {
 
             case Tokens.PRIMARY : {
                 if (schemaObject.getName().type != SchemaObject.TABLE) {
-                    throw this.unexpectedTokenRequire(Tokens.T_CHECK);
+                    throw unexpectedTokenRequire(Tokens.T_CHECK);
                 }
 
                 read();
@@ -1153,7 +1133,9 @@ public class ParserTable extends ParserDML {
 
                 if (mainConst.getConstraintType()
                         == SchemaObject.ConstraintTypes.PRIMARY_KEY) {
-                    throw Error.error(ErrorCode.X_42532);
+                    if (!mainConst.isSimpleIdentityPK) {
+                        throw Error.error(ErrorCode.X_42532);
+                    }
                 }
 
                 if (constName == null) {
@@ -1173,7 +1155,7 @@ public class ParserTable extends ParserDML {
             }
             case Tokens.UNIQUE : {
                 if (schemaObject.getName().type != SchemaObject.TABLE) {
-                    throw this.unexpectedTokenRequire(Tokens.T_CHECK);
+                    throw unexpectedTokenRequire(Tokens.T_CHECK);
                 }
 
                 read();
@@ -1202,7 +1184,7 @@ public class ParserTable extends ParserDML {
             }
             case Tokens.FOREIGN : {
                 if (schemaObject.getName().type != SchemaObject.TABLE) {
-                    throw this.unexpectedTokenRequire(Tokens.T_CHECK);
+                    throw unexpectedTokenRequire(Tokens.T_CHECK);
                 }
 
                 read();
@@ -1252,6 +1234,27 @@ public class ParserTable extends ParserDML {
         boolean hasNotNullConstraint = false;
         boolean hasNullNoiseWord     = false;
         boolean hasPrimaryKey        = false;
+
+        if (column.getDataType().typeCode == Types.SQL_TIMESTAMP) {
+            if (token.tokenType == Tokens.ON) {
+                int position = getPosition();
+
+                try {
+                    read();
+                    readThis(Tokens.UPDATE);
+                    readThis(Tokens.CURRENT_TIMESTAMP);
+
+                    FunctionSQL function =
+                        FunctionSQL.newSQLFunction(Tokens.T_CURRENT_TIMESTAMP,
+                                                   compileContext);
+
+                    function.resolveTypes(session, null);
+                    column.setUpdateExpression(function);
+                } catch (Exception e) {
+                    rewind(position);
+                }
+            }
+        }
 
         while (true) {
             HsqlName constName = null;
@@ -1501,14 +1504,20 @@ public class ParserTable extends ParserDML {
                     break;
             }
         } else if (dataType.isNumberType()) {
-            if (token.tokenType == Tokens.MINUS) {
-                read();
+            if (database.sqlSyntaxPgs && token.tokenType == Tokens.NEXTVAL) {
+                return readNextvalFunction();
+            }
 
-                minus = true;
+            if (database.sqlDoubleNaN
+                    && dataType.typeCode == Types.SQL_DOUBLE) {
+
+                // special for NaN
+                e = XreadNumericValueExpression();
             } else {
-                if (database.sqlSyntaxPgs
-                        && token.tokenType == Tokens.NEXTVAL) {
-                    return readNextvalFunction();
+                if (token.tokenType == Tokens.MINUS_OP) {
+                    read();
+
+                    minus = true;
                 }
             }
         } else if (dataType.isCharacterType()) {
@@ -1606,13 +1615,13 @@ public class ParserTable extends ParserDML {
                                            dataType.precision, 0);
             }
 
+            if (minus) {
+                value = valueType.negate(value);
+            }
+
             value = convertType.convertToType(session, value, valueType);
 
             read();
-
-            if (minus) {
-                value = dataType.negate(value);
-            }
 
             if (inParens) {
                 readThis(Tokens.CLOSEBRACKET);
@@ -1622,7 +1631,7 @@ public class ParserTable extends ParserDML {
         }
 
         if (database.sqlSyntaxOra || database.sqlSyntaxPgs) {
-            e = XreadValueExpressionOrNull();
+            e = XreadSimpleValueExpressionPrimary();
 
             if (e != null) {
                 if (e.getType() == OpTypes.ROW_SUBQUERY) {
@@ -1907,10 +1916,43 @@ public class ParserTable extends ParserDML {
         indexHsqlName.parent = table.getName();
         indexHsqlName.schema = table.getSchemaName();
 
+        if (readIfThis(Tokens.USING)) {
+            if ("BTREE".equals(token.tokenString)
+                    || "HASH".equals(token.tokenString)) {
+                read();
+            }
+        }
+
+        readThis(Tokens.ON);
+
         int[] indexColumns = readColumnList(table, true);
         Constraint c = new Constraint(indexHsqlName, table, indexColumns,
                                       SchemaObject.INDEX);
 
         indexList.add(c);
+    }
+
+    Boolean readIfNotExists() {
+
+        Boolean ifNot = Boolean.FALSE;
+
+        if (token.tokenType == Tokens.IF) {
+            int position = getPosition();
+
+            read();
+
+            if (token.tokenType == Tokens.NOT) {
+                read();
+                readThis(Tokens.EXISTS);
+
+                ifNot = Boolean.TRUE;
+            } else {
+                rewind(position);
+
+                ifNot = Boolean.FALSE;
+            }
+        }
+
+        return ifNot;
     }
 }

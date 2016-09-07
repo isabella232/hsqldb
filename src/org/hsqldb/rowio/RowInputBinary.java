@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,13 +61,21 @@ import org.hsqldb.types.Types;
  *
  * @author Bob Preston (sqlbob@users dot sourceforge.net)
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.2.9
+ * @version 2.3.4
  * @since 1.7.0
  */
 public class RowInputBinary extends RowInputBase implements RowInputInterface {
 
     public boolean          ignoreDataErrors;
     private RowOutputBinary out;
+
+    public RowInputBinary() {
+        this(64);
+    }
+
+    public RowInputBinary(int size) {
+        super(size);
+    }
 
     public RowInputBinary(byte[] buf) {
         super(buf);
@@ -154,13 +162,14 @@ public class RowInputBinary extends RowInputBase implements RowInputInterface {
     public String readString() {
 
         try {
-            int    length = readInt();
+            int length = readInt();
 
             if (length < 0) {
-                throw Error.error(ErrorCode.GENERAL_IO_ERROR, "RowInputBinary - negative length");
+                throw Error.error(ErrorCode.GENERAL_IO_ERROR,
+                                  "RowInputBinary - negative length");
             }
 
-            String s      = StringConverter.readUTF(buffer, pos, length);
+            String s = StringConverter.readUTF(buffer, pos, length);
 
             s   = ValuePool.getString(s);
             pos += length;
@@ -175,8 +184,7 @@ public class RowInputBinary extends RowInputBase implements RowInputInterface {
 
         int b = readByte();
 
-        return b == 0 ? true
-                      : false;
+        return b == 0;
     }
 
     protected String readChar(Type type) {

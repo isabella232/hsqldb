@@ -1,7 +1,7 @@
 /*
  * For work developed by the HSQL Development Group:
  *
- * Copyright (c) 2001-2011, The HSQL Development Group
+ * Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -116,14 +116,12 @@ import org.hsqldb.types.Type;
  *  shutdown it returns the result of the operation to the client.
  *  (fredt@users)<p>
  *
- * Rewritten in HSQLDB version 1.7.2, based on original Hypersonic code.<p>
  * ODBC support added for version 2.0.0 by Blaine Simpson.<p>
  *
  * @author Blaine Simpson (unsaved@users dot sourceforge.net
- * @author Thomas Mueller (Hypersonic SQL Group)
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.0
- * @since Hypersonic SQL
+ * @version 2.3.4
+ * @since 1.6.2
  */
 class ServerConnection implements Runnable {
 
@@ -296,15 +294,9 @@ class ServerConnection implements Runnable {
                         });
                     }
 
-                    Result resultIn = Result.newResult(dataInput, rowIn);
+                    int msgType = dataInput.readByte();
 
-                    resultIn.readAdditionalResults(session, dataInput, rowIn);
-
-                    Result resultOut;
-
-                    resultOut = setDatabase(resultIn);
-
-                    resultOut.write(session, dataOutput, rowOut);
+                    receiveResult(msgType);
                     break;
 
                 case ODBC_STREAM_PROTOCOL :
@@ -370,6 +362,12 @@ class ServerConnection implements Runnable {
 
             case ResultConstants.CONNECT : {
                 resultOut = setDatabase(resultIn);
+
+                break;
+            }
+            case ResultConstants.SQLCANCEL : {
+                resultOut = cancelStatement(resultIn);
+                terminate = true;
 
                 break;
             }
@@ -1469,10 +1467,8 @@ class ServerConnection implements Runnable {
                 String svrMsg    = rf.toString();
                 String cliMsg    = rf.getClientMessage();
 
-                if (svrMsg != null) {
+                if (server.isTrace()) {
                     server.printWithThread(svrMsg);
-                } else if (server.isTrace()) {
-                    server.printWithThread("Client error: " + cliMsg);
                 }
 
                 if (cliMsg != null) {
@@ -1584,9 +1580,7 @@ class ServerConnection implements Runnable {
                                        + "'");
             }
 
-            return Result.newConnectionAcknowledgeResponse(
-                session.getDatabase(), session.getId(),
-                session.getDatabase().getDatabaseID());
+            return Result.newConnectionAcknowledgeResponse(session);
         } catch (HsqlException e) {
             session = null;
 
@@ -1595,6 +1589,33 @@ class ServerConnection implements Runnable {
             session = null;
 
             return Result.newErrorResult(e);
+        }
+    }
+
+    private Result cancelStatement(Result resultIn) {
+
+        try {
+            dbID = resultIn.getDatabaseId();
+
+            long sessionId = resultIn.getSessionId();
+
+            session = DatabaseManager.getSession(dbID, sessionId);
+
+            if (!server.isSilent()) {
+                server.printWithThread(mThread
+                                       + ":Trying to cancel statement "
+                                       + " to DB (" + dbID + ')');
+            }
+
+            return session.cancel(resultIn);
+        } catch (HsqlException e) {
+            session = null;
+
+            return Result.updateZeroResult;
+        } catch (Throwable t) {
+            session = null;
+
+            return Result.updateZeroResult;
         }
     }
 
@@ -1723,7 +1744,7 @@ class ServerConnection implements Runnable {
             }
 
             server.print(
-                "Got an ODBC cancelation request for thread ID "
+                "Got an ODBC cancellation request for thread ID "
                 + dataInput.readInt() + ", but we don't support "
                 + "OOB cancellation yet.  "
                 + "Ignoring this request and closing the connection.");
@@ -1871,7 +1892,7 @@ class ServerConnection implements Runnable {
     private java.util.Map sessionOdbcPortalMap = new java.util.HashMap();
 
     /**
-     * Read String directy from dataInput.
+     * Read String directly from dataInput.
      *
      * @param reqLength Required length
      */

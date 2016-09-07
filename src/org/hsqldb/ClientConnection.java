@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2011, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,14 +62,14 @@ import org.hsqldb.types.TimestampData;
 
 /**
  * Base remote session proxy implementation. Uses instances of Result to
- * transmit and recieve data. This implementation utilises the updated HSQL
+ * transmit and receive data. This implementation utilises the updated HSQL
  * protocol.
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.0
+ * @version 2.3.4
  * @since 1.7.2
  */
-public class ClientConnection implements SessionInterface {
+public class ClientConnection implements SessionInterface, Cloneable {
 
     /**
      * Specifies the Compatibility version required for both Servers and
@@ -85,8 +85,8 @@ public class ClientConnection implements SessionInterface {
      * are multiplied by 100 to power p and added up, then negated, to form the
      * integer representation of version string.
      */
-    public static final String NETWORK_COMPATIBILITY_VERSION     = "2.1.0.0";
-    public static final int    NETWORK_COMPATIBILITY_VERSION_INT = -2010000;
+    public static final String NETWORK_COMPATIBILITY_VERSION     = "2.3.4.0";
+    public static final int    NETWORK_COMPATIBILITY_VERSION_INT = -2030400;
 
     //
     static final int             BUFFER_SIZE = 0x1000;
@@ -100,6 +100,7 @@ public class ClientConnection implements SessionInterface {
     private Result               resultOut;
     private long                 sessionID;
     private long                 lobIDSequence = -1;
+    protected int                randomID;
 
     //
     private boolean  isReadOnlyDefault = false;
@@ -142,12 +143,10 @@ public class ClientConnection implements SessionInterface {
         this.zoneString   = TimeZone.getDefault().getID();
 
         initStructures();
+        initConnection(host, port, isTLS);
 
         Result login = Result.newConnectionAttemptRequest(user, password,
             database, zoneString, timeZoneSeconds);
-
-        initConnection(host, port, isTLS);
-
         Result resultIn = execute(login);
 
         if (resultIn.isError()) {
@@ -158,10 +157,33 @@ public class ClientConnection implements SessionInterface {
         databaseID             = resultIn.getDatabaseId();
         databaseUniqueName     = resultIn.getDatabaseName();
         clientPropertiesString = resultIn.getMainString();
+        randomID               = resultIn.getSessionRandomID();
+    }
+
+    protected ClientConnection(ClientConnection other) {
+
+        this.host         = other.host;
+        this.port         = other.port;
+        this.path         = other.path;
+        this.database     = other.database;
+        this.isTLS        = other.isTLS;
+        this.isTLSWrapper = other.isTLSWrapper;
+        this.zoneSeconds  = other.zoneSeconds;
+        this.zoneString   = other.zoneString;
+
+        //
+        this.sessionID              = other.sessionID;
+        this.databaseID             = other.databaseID;
+        this.databaseUniqueName     = other.databaseUniqueName;
+        this.clientPropertiesString = other.clientPropertiesString;
+        this.randomID               = other.randomID;
+
+        initStructures();
+        initConnection(host, port, isTLS);
     }
 
     /**
-     * resultOut is reused to trasmit all remote calls for session management.
+     * resultOut is reused to transmit all remote calls for session management.
      * Here the structure is preset for sending attributes.
      */
     private void initStructures() {
@@ -330,6 +352,8 @@ public class ClientConnection implements SessionInterface {
             case SessionInterface.INFO_CATALOG :
                 data[SessionInterface.INFO_VARCHAR] = value;
                 break;
+
+            default :
         }
 
         Result resultIn = execute(resultOut);
@@ -523,6 +547,19 @@ public class ClientConnection implements SessionInterface {
         return null;
     }
 
+    public Result cancel(Result result) {
+
+        ClientConnection connection = new ClientConnection(this);
+
+        try {
+            result.setSessionRandomID(randomID);
+
+            return connection.execute(result);
+        } finally {
+            connection.closeConnection();
+        }
+    }
+
     public synchronized long getLobId() {
         return lobIDSequence--;
     }
@@ -570,7 +607,10 @@ public class ClientConnection implements SessionInterface {
     public Calendar getCalendarGMT() {
 
         if (calendarGMT == null) {
-            calendarGMT = new GregorianCalendar(TimeZone.getTimeZone("GMT"));
+            calendarGMT = new GregorianCalendar(TimeZone.getTimeZone("GMT"),
+                                                HsqlDateTime.defaultLocale);
+
+            calendarGMT.setLenient(false);
         }
 
         return calendarGMT;
@@ -581,8 +621,10 @@ public class ClientConnection implements SessionInterface {
         if (simpleDateFormatGMT == null) {
             simpleDateFormatGMT = new SimpleDateFormat("MMMM", Locale.ENGLISH);
 
-            Calendar cal = new GregorianCalendar(TimeZone.getTimeZone("GMT"));
+            Calendar cal = new GregorianCalendar(TimeZone.getTimeZone("GMT"),
+                                                 HsqlDateTime.defaultLocale);
 
+            cal.setLenient(false);
             simpleDateFormatGMT.setCalendar(cal);
         }
 
@@ -633,7 +675,7 @@ public class ClientConnection implements SessionInterface {
 
     /**
      * Converts specified encoded integer to a Network Compatibility Version
-     * String. The tranmitted integer is negative to distinguish it from
+     * String. The transmitted integer is negative to distinguish it from
      * 7 bit ASCII characters.
      */
     public static String toNetCompVersionString(int i) {

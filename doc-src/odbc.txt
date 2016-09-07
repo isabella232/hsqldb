@@ -1,4 +1,4 @@
-$Id$
+$Id: odbc.txt 2850 2009-02-23 22:27:10Z unsaved $
 
 This file documents various aspects of HyerSQL's ODBC support.
 It does not document driver-side issues (at least once we can discriminate),

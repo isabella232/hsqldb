@@ -33,7 +33,7 @@ package org.hsqldb.cmdline.sqltool;
 
 import java.io.IOException;
 
-/* @(#)$Id$ */
+/* @(#)$Id: TokenSource.java 4141 2011-03-14 01:35:49Z fredt $ */
 
 public interface TokenSource {
     public Token yylex() throws IOException;

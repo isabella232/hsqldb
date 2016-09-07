@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: rowcount.sql 5446 2015-03-22 18:06:56Z unsaved $
  *
  * Tests automatic variable #
  */

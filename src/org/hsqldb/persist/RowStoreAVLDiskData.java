@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 package org.hsqldb.persist;
 
 import java.io.IOException;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.hsqldb.HsqlException;
 import org.hsqldb.Row;
@@ -52,7 +53,7 @@ import org.hsqldb.rowio.RowOutputInterface;
  * Implementation of PersistentStore for TEXT tables.
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.4
  * @since 1.9.0
  */
 public class RowStoreAVLDiskData extends RowStoreAVL {
@@ -60,14 +61,28 @@ public class RowStoreAVLDiskData extends RowStoreAVL {
     DataFileCache      cache;
     RowOutputInterface rowOut;
 
-    public RowStoreAVLDiskData(PersistentStoreCollection manager,
-                               Table table) {
+    public RowStoreAVLDiskData(Table table) {
 
         this.database     = table.database;
-        this.manager      = manager;
         this.table        = table;
         this.indexList    = table.getIndexList();
         this.accessorList = new CachedObject[indexList.length];
+        lock              = new ReentrantReadWriteLock();
+        readLock          = lock.readLock();
+        writeLock         = lock.writeLock();
+    }
+
+    public Object[] getData(RowAVLDiskData row) {
+
+        cache.writeLock.lock();
+
+        try {
+            cache.get(row, this, false);
+
+            return row.getData();
+        } finally {
+            cache.writeLock.unlock();
+        }
     }
 
     public CachedObject get(long key, boolean keep) {
@@ -125,13 +140,11 @@ public class RowStoreAVLDiskData extends RowStoreAVL {
 
     public CachedObject get(CachedObject object, RowInputInterface in) {
 
-        try {
-            ((RowAVLDiskData) object).getRowData(table, in);
+        Object[] rowData = in.readData(table.getColumnTypes());
 
-            return object;
-        } catch (IOException e) {
-            throw Error.error(ErrorCode.TEXT_FILE_IO, e);
-        }
+        ((RowAVLDiskData) object).setData(rowData);
+
+        return object;
     }
 
     public CachedObject getNewCachedObject(Session session, Object object,
@@ -150,10 +163,6 @@ public class RowStoreAVLDiskData extends RowStoreAVL {
 
     public boolean isMemory() {
         return false;
-    }
-
-    public int getAccessCount() {
-        return cache.getAccessCount();
     }
 
     public void set(CachedObject object) {}
@@ -294,5 +303,21 @@ public class RowStoreAVLDiskData extends RowStoreAVL {
         cache = null;
 
         ArrayUtil.fillArray(accessorList, null);
+    }
+
+    public void readLock() {
+        readLock.lock();
+    }
+
+    public void readUnlock() {
+        readLock.unlock();
+    }
+
+    public void writeLock() {
+        writeLock.lock();
+    }
+
+    public void writeUnlock() {
+        writeLock.unlock();
     }
 }

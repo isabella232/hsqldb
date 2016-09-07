@@ -1,5 +1,5 @@
 <?xml version='1.0'?>
-<!-- $Id$ -->
+<!-- $Id: html-common.xsl 4603 2011-10-22 17:26:14Z unsaved $ -->
 <!-- Contents of this file apply to both regular HTML and Chunk HTML formats -->
 <!-- See http://www.sagehill.net/docbookxsl/CustomDb5Xsl.html for general
      syntax. -->

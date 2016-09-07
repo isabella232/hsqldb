@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: dsv-multiline.sql 5406 2014-10-13 20:53:18Z unsaved $
  *
  * Does a DSV export using a multi-line custom query instead of just
  * specifying the table name.

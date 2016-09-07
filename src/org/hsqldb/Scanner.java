@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2014, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,7 +62,7 @@ import org.hsqldb.types.Types;
  * Scans for SQL tokens.
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.2
+ * @version 2.3.4
  * @since 1.9.0
  */
 public class Scanner {
@@ -182,6 +182,7 @@ public class Scanner {
     Token   token = new Token();
     boolean nullAndBooleanAsValue;
     boolean backtickQuoting;
+    boolean charLiteral = true;
 
     //
     private boolean hasNonSpaceSeparator;
@@ -204,15 +205,18 @@ public class Scanner {
 
     public Scanner() {}
 
-    public Scanner(Database database) {
-
-        if (database.sqlSyntaxMys) {
-            backtickQuoting = true;
-        }
+    public Scanner(Session session, String sql) {
+        reset(session, sql);
     }
 
-    Scanner(String sql) {
+    public void reset(Session session, String sql) {
+
         reset(sql);
+
+        if (session != null) {
+            backtickQuoting = session.database.sqlSyntaxMys;
+            charLiteral     = session.database.sqlCharLiteral;
+        }
     }
 
     public void reset(String sql) {
@@ -1334,6 +1338,7 @@ public class Scanner {
      */
     void scanToken() {
 
+        int typeCode;
         int character = charAt(currentPosition);
 
         resetState();
@@ -1412,8 +1417,8 @@ public class Scanner {
                 return;
 
             case '=' :
-                token.tokenString = Tokens.T_EQUALS;
-                token.tokenType   = Tokens.EQUALS;
+                token.tokenString = Tokens.T_EQUALS_OP;
+                token.tokenType   = Tokens.EQUALS_OP;
 
                 currentPosition++;
 
@@ -1432,8 +1437,8 @@ public class Scanner {
                 return;
 
             case '+' :
-                token.tokenString = Tokens.T_PLUS;
-                token.tokenType   = Tokens.PLUS;
+                token.tokenString = Tokens.T_PLUS_OP;
+                token.tokenType   = Tokens.PLUS_OP;
 
                 currentPosition++;
 
@@ -1523,8 +1528,8 @@ public class Scanner {
                     return;
                 }
 
-                token.tokenString = Tokens.T_LESS;
-                token.tokenType   = Tokens.LESS;
+                token.tokenString = Tokens.T_LESS_OP;
+                token.tokenType   = Tokens.LESS_OP;
 
                 currentPosition++;
 
@@ -1542,8 +1547,8 @@ public class Scanner {
                     return;
                 }
 
-                token.tokenString = Tokens.T_GREATER;
-                token.tokenType   = Tokens.GREATER;
+                token.tokenString = Tokens.T_GREATER_OP;
+                token.tokenType   = Tokens.GREATER_OP;
 
                 currentPosition++;
 
@@ -1553,8 +1558,8 @@ public class Scanner {
 
             case '|' :
                 if (charAt(currentPosition + 1) == '|') {
-                    token.tokenString = Tokens.T_CONCAT;
-                    token.tokenType   = Tokens.CONCAT;
+                    token.tokenString = Tokens.T_CONCAT_OP;
+                    token.tokenType   = Tokens.CONCAT_OP;
                     currentPosition   += 2;
                     token.isDelimiter = true;
 
@@ -1607,8 +1612,8 @@ public class Scanner {
                     return;
                 }
 
-                token.tokenString = Tokens.T_DIVIDE;
-                token.tokenType   = Tokens.DIVIDE;
+                token.tokenString = Tokens.T_DIVIDE_OP;
+                token.tokenType   = Tokens.DIVIDE_OP;
 
                 currentPosition++;
 
@@ -1636,8 +1641,8 @@ public class Scanner {
                     return;
                 }
 
-                token.tokenString = Tokens.T_MINUS;
-                token.tokenType   = Tokens.MINUS;
+                token.tokenString = Tokens.T_MINUS_OP;
+                token.tokenType   = Tokens.MINUS_OP;
 
                 currentPosition++;
 
@@ -1662,7 +1667,9 @@ public class Scanner {
                     return;
                 }
 
-                token.dataType = CharacterType.getCharacterType(Types.SQL_CHAR,
+                typeCode = charLiteral ? Types.SQL_CHAR
+                                       : Types.SQL_VARCHAR;
+                token.dataType = CharacterType.getCharacterType(typeCode,
                         token.tokenString.length());
                 token.tokenType   = Tokens.X_VALUE;
                 token.isDelimiter = true;
@@ -1720,8 +1727,10 @@ public class Scanner {
                         return;
                     }
 
-                    token.dataType = CharacterType.getCharacterType(
-                        Types.SQL_CHAR, token.tokenString.length());
+                    typeCode = charLiteral ? Types.SQL_CHAR
+                                           : Types.SQL_VARCHAR;
+                    token.dataType = CharacterType.getCharacterType(typeCode,
+                            token.tokenString.length());
                     token.tokenType = Tokens.X_VALUE;
 
                     return;
@@ -1742,9 +1751,10 @@ public class Scanner {
                             return;
                         }
 
+                        typeCode = charLiteral ? Types.SQL_CHAR
+                                               : Types.SQL_VARCHAR;
                         token.dataType = CharacterType.getCharacterType(
-                            Types.SQL_CHAR,
-                            ((String) token.tokenValue).length());
+                            typeCode, ((String) token.tokenValue).length());
 
                         return;
                     }
@@ -1806,6 +1816,7 @@ public class Scanner {
 
                     break;
                 }
+            case '.' :
             case '0' :
             case '1' :
             case '2' :
@@ -1816,7 +1827,6 @@ public class Scanner {
             case '7' :
             case '8' :
             case '9' :
-            case '.' :
                 token.tokenType = Tokens.X_VALUE;
 
                 scanNumber();
@@ -2382,10 +2392,10 @@ public class Scanner {
         scanToken();
         scanWhitespace();
 
-        if (token.tokenType == Tokens.PLUS) {
+        if (token.tokenType == Tokens.PLUS_OP) {
             scanToken();
             scanWhitespace();
-        } else if (token.tokenType == Tokens.MINUS) {
+        } else if (token.tokenType == Tokens.MINUS_OP) {
             minus = true;
 
             scanToken();
@@ -2414,6 +2424,10 @@ public class Scanner {
     }
 
     public synchronized BinaryData convertToBinary(String s) {
+        return convertToBinary(s, false);
+    }
+
+    public synchronized BinaryData convertToBinary(String s, boolean uuid) {
 
         boolean hi = true;
         byte    b  = 0;
@@ -2423,11 +2437,15 @@ public class Scanner {
         byteOutputStream.reset(byteBuffer);
 
         for (; currentPosition < limit; currentPosition++, hi = !hi) {
-            int c = sqlString.charAt(currentPosition);
-
-            c = getHexValue(c);
+            int ch = sqlString.charAt(currentPosition);
+            int c  = getHexValue(ch);
 
             if (c == -1) {
+                if (uuid && ch == '-' && hi) {
+                    hi = !hi;
+
+                    continue;
+                }
 
                 // bad character
                 token.tokenType   = Tokens.X_MALFORMED_BINARY_STRING;
@@ -2448,6 +2466,11 @@ public class Scanner {
         if (!hi) {
 
             // odd nibbles
+            token.tokenType   = Tokens.X_MALFORMED_BINARY_STRING;
+            token.isMalformed = true;
+        }
+
+        if (uuid && byteOutputStream.size() != 16) {
             token.tokenType   = Tokens.X_MALFORMED_BINARY_STRING;
             token.isMalformed = true;
         }
@@ -2523,7 +2546,7 @@ public class Scanner {
                 scanToken();
 
                 if (token.tokenType != Tokens.X_VALUE
-                        || token.dataType.typeCode != Types.SQL_CHAR) {
+                        || !token.dataType.isCharacterType()) {
 
                     // error datetime bad literal
                     throw Error.error(errorCode);

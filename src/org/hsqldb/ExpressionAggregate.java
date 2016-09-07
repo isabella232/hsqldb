@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2014, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,6 @@ import org.hsqldb.types.RowType;
  */
 public class ExpressionAggregate extends Expression {
 
-    boolean   isDistinctAggregate;
     ArrayType arrayType;
 
     ExpressionAggregate(int type, boolean distinct, Expression e) {
@@ -190,6 +189,8 @@ public class ExpressionAggregate extends Expression {
             case OpTypes.VAR_SAMP :
                 sb.append(Tokens.T_VAR_SAMP).append(' ');
                 break;
+
+            default :
         }
 
         if (getLeftNode() != null) {
@@ -263,9 +264,8 @@ public class ExpressionAggregate extends Expression {
         if (other instanceof ExpressionAggregate) {
             ExpressionAggregate o = (ExpressionAggregate) other;
 
-            if (isDistinctAggregate == o.isDistinctAggregate) {
-                return super.equals(other);
-            }
+            return super.equals(other)
+                   && isDistinctAggregate == o.isDistinctAggregate;
         }
 
         return false;

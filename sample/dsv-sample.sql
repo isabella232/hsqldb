@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: dsv-sample.sql 610 2008-12-22 15:54:18Z unsaved $
  *
  * Imports delimiter-separated-values, and generates an output 
  * reject .dsv file, and a reject report.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2014, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@ import org.hsqldb.lib.java.JavaSystem;
  * mark() and reset() are not supported.
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.0.1
+ * @version 2.3.4
  * @since 1.9.0
  */
 public final class ClobInputStream extends Reader {
@@ -99,7 +99,7 @@ public final class ClobInputStream extends Reader {
 
         checkClosed();
 
-        if (currentPosition == availableLength) {
+        if (currentPosition >= availableLength) {
             return -1;
         }
 
@@ -107,7 +107,7 @@ public final class ClobInputStream extends Reader {
             len = (int) (availableLength - currentPosition);
         }
 
-        for (int i = off; i < len; i++) {
+        for (int i = off; i < off + len && i < cbuf.length; i++) {
             cbuf[i] = (char) read();
         }
 

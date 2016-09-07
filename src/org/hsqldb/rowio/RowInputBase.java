@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,6 +66,10 @@ abstract class RowInputBase extends HsqlByteArrayInputStream {
 
     RowInputBase() {
         this(new byte[4]);
+    }
+
+    RowInputBase(int size) {
+        this(new byte[size]);
     }
 
     /**
@@ -251,6 +255,7 @@ abstract class RowInputBase extends HsqlByteArrayInputStream {
                 o = readArray(type);
                 break;
 
+            case Types.SQL_GUID :
             case Types.SQL_BINARY :
             case Types.SQL_VARBINARY :
                 o = readBinary();

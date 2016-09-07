@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: j-sample.sql 3605 2010-06-01 02:21:36Z unsaved $
     Exemplifies use of SqlTool's \j command to specify the JDBC connection
     parameters right in the SQL file.
 

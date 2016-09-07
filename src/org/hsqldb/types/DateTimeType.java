@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@ import org.hsqldb.lib.StringConverter;
  * Type subclass for DATE, TIME and TIMESTAMP.<p>
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.0
+ * @version 2.3.4
  * @since 1.9.0
  */
 public final class DateTimeType extends DTIType {
@@ -61,6 +61,8 @@ public final class DateTimeType extends DTIType {
         HsqlDateTime.getDateSeconds("1-01-01");
     public static final TimestampData epochTimestamp =
         new TimestampData(epochSeconds);
+    public static final long limitSeconds =
+        HsqlDateTime.getDateSeconds("10000-01-01");
 
     public DateTimeType(int typeGroup, int type, int scale) {
 
@@ -558,13 +560,14 @@ public final class DateTimeType extends DTIType {
                     case Types.SQL_TIMESTAMP_WITH_TIME_ZONE : {
                         long seconds = ((TimestampData) a).getSeconds()
                                        + ((TimestampData) a).getZone();
-                        long l = HsqlDateTime.getNormalisedDate(seconds
-                            * 1000);
+                        long l = HsqlDateTime.getNormalisedDate(
+                            session.getCalendarGMT(), seconds * 1000);
 
                         return new TimestampData(l / 1000);
                     }
                     case Types.SQL_TIMESTAMP : {
                         long l = HsqlDateTime.getNormalisedDate(
+                            session.getCalendarGMT(),
                             ((TimestampData) a).getSeconds() * 1000);
 
                         return new TimestampData(l / 1000);
@@ -603,7 +606,8 @@ public final class DateTimeType extends DTIType {
 
                         seconds =
                             HsqlDateTime.convertToNormalisedTime(
-                                seconds * 1000) / 1000;
+                                seconds * 1000,
+                                session.getCalendarGMT()) / 1000;
 
                         return new TimeData((int) (seconds),
                                             scaleNanos(ts.getNanos()),
@@ -630,7 +634,8 @@ public final class DateTimeType extends DTIType {
 
                         seconds =
                             HsqlDateTime.convertToNormalisedTime(
-                                seconds * 1000) / 1000;
+                                seconds * 1000,
+                                session.getCalendarGMT()) / 1000;
 
                         return new TimeData((int) (seconds),
                                             scaleNanos(ts.getNanos()), 0);
@@ -639,7 +644,8 @@ public final class DateTimeType extends DTIType {
                         TimestampData ts = (TimestampData) a;
                         long seconds =
                             HsqlDateTime.convertToNormalisedTime(
-                                ts.getSeconds() * 1000) / 1000;
+                                ts.getSeconds() * 1000,
+                                session.getCalendarGMT()) / 1000;
 
                         return new TimeData((int) (seconds),
                                             scaleNanos(ts.getNanos()));
@@ -762,14 +768,15 @@ public final class DateTimeType extends DTIType {
 
                     if (typeCode == Types.SQL_TIME) {
                         millis = HsqlDateTime.convertMillisFromCalendar(
-                            session.getCalendar(),
+                            session.getCalendarGMT(), session.getCalendar(),
                             ((java.util.Date) a).getTime());
                     } else {
                         millis      = ((java.util.Date) a).getTime();
                         zoneSeconds = session.getZoneSeconds();
                     }
 
-                    millis = HsqlDateTime.getNormalisedTime(millis);
+                    millis = HsqlDateTime.getNormalisedTime(
+                        session.getCalendarGMT(), millis);
 
                     if (a instanceof java.sql.Timestamp) {
                         nanos = ((java.sql.Timestamp) a).getNanos();
@@ -788,12 +795,20 @@ public final class DateTimeType extends DTIType {
 
                 if (a instanceof java.util.Date) {
                     long millis;
+                    long seconds;
 
                     millis = HsqlDateTime.convertMillisFromCalendar(
-                        session.getCalendar(), ((java.util.Date) a).getTime());
-                    millis = HsqlDateTime.getNormalisedDate(millis);
+                        session.getCalendarGMT(), session.getCalendar(),
+                        ((java.util.Date) a).getTime());
+                    millis = HsqlDateTime.getNormalisedDate(
+                        session.getCalendarGMT(), millis);
+                    seconds = millis / 1000;
 
-                    return new TimestampData(millis / 1000);
+                    if (seconds < epochSeconds || seconds > limitSeconds) {
+                        throw Error.error(ErrorCode.X_22008);
+                    }
+
+                    return new TimestampData(seconds);
                 }
 
                 break;
@@ -806,12 +821,13 @@ public final class DateTimeType extends DTIType {
 
                 if (a instanceof java.util.Date) {
                     long millis;
+                    long seconds;
                     int  nanos       = 0;
                     int  zoneSeconds = 0;
 
                     if (typeCode == Types.SQL_TIMESTAMP) {
                         millis = HsqlDateTime.convertMillisFromCalendar(
-                            session.getCalendar(),
+                            session.getCalendarGMT(), session.getCalendar(),
                             ((java.util.Date) a).getTime());
                     } else {
                         millis = ((java.util.Date) a).getTime();
@@ -822,11 +838,16 @@ public final class DateTimeType extends DTIType {
 
                     if (a instanceof java.sql.Timestamp) {
                         nanos = ((java.sql.Timestamp) a).getNanos();
-                        nanos = this.normaliseFraction(nanos, scale);
+                        nanos = DateTimeType.normaliseFraction(nanos, scale);
                     }
 
-                    return new TimestampData(millis / 1000, nanos,
-                                             zoneSeconds);
+                    seconds = millis / 1000;
+
+                    if (seconds < epochSeconds || seconds > limitSeconds) {
+                        throw Error.error(ErrorCode.X_22008);
+                    }
+
+                    return new TimestampData(seconds, nanos, zoneSeconds);
                 }
 
                 break;
@@ -844,7 +865,7 @@ public final class DateTimeType extends DTIType {
 
             case Types.SQL_TIME :
             case Types.SQL_TIME_WITH_TIME_ZONE :
-                millis = ((TimeData) a).getSeconds() * 1000;
+                millis = ((TimeData) a).getSeconds() * 1000L;
                 millis += ((TimeData) a).getNanos() / 1000000;
 
                 return new java.sql.Time(millis);
@@ -880,7 +901,7 @@ public final class DateTimeType extends DTIType {
             case Types.SQL_TIME : {
                 Calendar cal = session.getCalendar();
                 long millis = HsqlDateTime.convertMillisToCalendar(cal,
-                    ((TimeData) a).getSeconds() * 1000);
+                    ((TimeData) a).getSeconds() * 1000L);
 
                 millis = HsqlDateTime.getNormalisedTime(cal, millis);
 
@@ -891,7 +912,7 @@ public final class DateTimeType extends DTIType {
             case Types.SQL_TIME_WITH_TIME_ZONE : {
                 int seconds = ((TimeData) a).getSeconds();
 
-                return new java.sql.Time(seconds * 1000);
+                return new java.sql.Time(seconds * 1000L);
             }
             case Types.SQL_DATE : {
                 Calendar cal = session.getCalendar();
@@ -1105,7 +1126,7 @@ public final class DateTimeType extends DTIType {
             case Types.SQL_TIMESTAMP :
                 if (b instanceof IntervalMonthData) {
                     return addMonths(session, (TimestampData) a,
-                                     (int) ((IntervalMonthData) b).units);
+                                     ((IntervalMonthData) b).units);
                 } else if (b instanceof IntervalSecondData) {
                     return addSeconds((TimestampData) a,
                                       ((IntervalSecondData) b).units,
@@ -1154,7 +1175,7 @@ public final class DateTimeType extends DTIType {
             case Types.SQL_TIMESTAMP :
                 if (b instanceof IntervalMonthData) {
                     return addMonths(session, (TimestampData) a,
-                                     -(int) ((IntervalMonthData) b).units);
+                                     -((IntervalMonthData) b).units);
                 } else if (b instanceof IntervalSecondData) {
                     return addSeconds((TimestampData) a,
                                       -((IntervalSecondData) b).units,
@@ -1233,7 +1254,11 @@ public final class DateTimeType extends DTIType {
 
     public boolean equals(Object other) {
 
-        if (other instanceof Type) {
+        if (other == this) {
+            return true;
+        }
+
+        if (other instanceof DateTimeType) {
             return super.equals(other)
                    && ((DateTimeType) other).withTimeZone == withTimeZone;
         }
@@ -1384,7 +1409,7 @@ public final class DateTimeType extends DTIType {
                 || typeCode == Types.SQL_TIME_WITH_TIME_ZONE) {
             millis =
                 (((TimeData) dateTime).getSeconds() + ((TimeData) dateTime)
-                    .getZone()) * 1000;
+                    .getZone()) * 1000L;
         } else {
             millis =
                 (((TimestampData) dateTime)
@@ -1400,9 +1425,9 @@ public final class DateTimeType extends DTIType {
 
         if (typeCode == Types.SQL_TIME
                 || typeCode == Types.SQL_TIME_WITH_TIME_ZONE) {
-            millis = ((TimeData) dateTime).getZone() * 1000;
+            millis = ((TimeData) dateTime).getZone() * 1000L;
         } else {
-            millis = ((TimestampData) dateTime).getZone() * 1000;
+            millis = ((TimestampData) dateTime).getZone() * 1000L;
         }
 
         return millis;
@@ -1583,7 +1608,7 @@ public final class DateTimeType extends DTIType {
                     int seconds = value.getSeconds() - localZone;
 
                     seconds =
-                        (int) (HsqlDateTime.getNormalisedTime(seconds * 1000)
+                        (int) (HsqlDateTime.getNormalisedTime(seconds * 1000L)
                                / 1000);
 
                     return new TimeData(seconds, value.getNanos(), targetZone);
@@ -1635,8 +1660,98 @@ public final class DateTimeType extends DTIType {
         }
     }
 
-    public static Boolean overlaps(Session session, Object[] a, Type[] ta,
-                                   Object[] b, Type[] tb) {
+    /**
+     * For temporal predicate operations on periods, we need to make sure we
+     * compare data of the same types.
+     * <p>
+     *
+     * @param session
+     * @param a First period to compare
+     * @param ta Types of the first period
+     * @param b Second period to compare
+     * @param tb Type of the second period
+     *
+     * @return The common data type of the boundaries of the two limits.
+     *         null if any of the two periods is null or if the first limit of
+     *         any period is null.
+     *
+     * @since 2.3.4
+     */
+    public static Type normalizeInput(Session session, Object[] a, Type[] ta,
+                                      Object[] b, Type[] tb,
+                                      boolean pointOfTime) {
+
+        if (a == null || b == null) {
+            return null;
+        }
+
+        if (a[0] == null || b[0] == null) {
+            return null;
+        }
+
+        if (a[1] == null) {
+            return null;
+        }
+
+        if (!pointOfTime && b[1] == null) {
+            return null;
+        }
+
+        Type commonType = SQL_TIMESTAMP_WITH_TIME_ZONE;
+
+        a[0] = commonType.castToType(session, a[0], ta[0]);
+        b[0] = commonType.castToType(session, b[0], tb[0]);
+
+        if (ta[1].isIntervalType()) {
+            a[1] = commonType.add(session, a[0], a[1], ta[1]);
+        } else {
+            a[1] = commonType.castToType(session, a[1], ta[1]);
+        }
+
+        if (tb[1].isIntervalType()) {
+            b[1] = commonType.add(session, b[0], b[1], tb[1]);
+        } else {
+            if (pointOfTime) {
+                b[1] = b[0];
+            } else {
+                b[1] = commonType.castToType(session, b[1], tb[1]);
+            }
+        }
+
+        if (commonType.compare(session, a[0], a[1]) >= 0) {
+            throw Error.error(ErrorCode.X_22020);
+        }
+
+        if (!pointOfTime && commonType.compare(session, b[0], b[1]) >= 0) {
+            throw Error.error(ErrorCode.X_22020);
+        }
+
+        return commonType;
+    }
+
+    /**
+     * For temporal predicate operations on periods, we need to make sure we
+     * compare data of the same types.
+     * We also switch the period boundaries if the first entry is after the
+     * second one.
+     * <p>
+     * Important: when this method returns, the boundaries of the periods may
+     * have been changed.
+     *
+     * @param session
+     * @param a First period to compare
+     * @param ta Types of the first period
+     * @param b Second period to compare
+     * @param tb Type of the second period
+     *
+     * @return The common data type of the boundaries of the two limits.
+     *         null if any of the two periods is null or if the first limit of
+     *         any period is null.
+     *
+     * @since 2.3.4
+     */
+    public static Type normalizeInputRelaxed(Session session, Object[] a,
+            Type[] ta, Object[] b, Type[] tb) {
 
         if (a == null || b == null) {
             return null;
@@ -1685,6 +1800,36 @@ public final class DateTimeType extends DTIType {
             b[1] = temp;
         }
 
+        return commonType;
+    }
+
+    /**
+     * The predicate "a OVERLAPS b" applies when both a and b are either period
+     * names or period constructors.
+     * This predicate returns True if the two periods have at least one time
+     * point in common, i.e, if a[0] < b[1] and
+     * a[1] > b[0]. This predicates is commutative: "a OVERLAPS B" must return
+     * the same result of "b OVERLAPS a"
+     * <p>
+     *
+     * @param session
+     * @param a First period to compare
+     * @param ta Types of the first period
+     * @param b Second period to compare
+     * @param tb Type of the second period
+     *
+     * @return {@link Boolean#TRUE} if the two periods overlaps,
+     *          else {@link Boolean#FALSE}
+     */
+    public static Boolean overlaps(Session session, Object[] a, Type[] ta,
+                                   Object[] b, Type[] tb) {
+
+        Type commonType = normalizeInput(session, a, ta, b, tb, false);
+
+        if (commonType == null) {
+            return null;
+        }
+
         if (commonType.compare(session, a[0], b[0]) > 0) {
             Object[] temp = a;
 
@@ -1693,6 +1838,253 @@ public final class DateTimeType extends DTIType {
         }
 
         if (commonType.compare(session, a[1], b[0]) > 0) {
+            return Boolean.TRUE;
+        }
+
+        return Boolean.FALSE;
+    }
+
+    /**
+     * The predicate "a OVERLAPS b" applies when both a and b are rows.
+     * This predicate returns True if the two periods have at least one time
+     * point in common, i.e, if a[0] < b[1] and
+     * a[1] > b[0]. This predicates is commutative: "a OVERLAPS B" must return
+     * the same result of "b OVERLAPS a"
+     * <p>
+     * Important: when this method returns, the boundaries of the periods may
+     * have been changed.
+     *
+     * @param session
+     * @param a First period to compare
+     * @param ta Types of the first period
+     * @param b Second period to compare
+     * @param tb Type of the second period
+     *
+     * @return {@link Boolean#TRUE} if the two periods overlaps,
+     *          else {@link Boolean#FALSE}
+     */
+    public static Boolean overlapsRelaxed(Session session, Object[] a,
+                                          Type[] ta, Object[] b, Type[] tb) {
+
+        Type commonType = normalizeInputRelaxed(session, a, ta, b, tb);
+
+        if (commonType == null) {
+            return null;
+        }
+
+        if (commonType.compare(session, a[0], b[0]) > 0) {
+            Object[] temp = a;
+
+            a = b;
+            b = temp;
+        }
+
+        if (commonType.compare(session, a[1], b[0]) > 0) {
+            return Boolean.TRUE;
+        }
+
+        return Boolean.FALSE;
+    }
+
+    /**
+     * The predicate "a PRECEDES b" applies when both a and b are either period
+     * names or period constructors.
+     * In this case, the predicate returns True if the end value of a is less
+     * than or equal to the start value of b, i.e., if ae <= as.
+     * <p>
+     *
+     * @param session
+     * @param a First period to compare
+     * @param ta Types of the first period
+     * @param b Second period to compare
+     * @param tb Type of the second period
+     *
+     * @return {@link Boolean#TRUE} if period a precedes period b,
+     *          else {@link Boolean#FALSE}
+     */
+    public static Boolean precedes(Session session, Object[] a, Type[] ta,
+                                   Object[] b, Type[] tb) {
+
+        Type commonType = normalizeInput(session, a, ta, b, tb, false);
+
+        if (commonType == null) {
+            return null;
+        }
+
+        if (commonType.compare(session, a[1], b[0]) <= 0) {
+            return Boolean.TRUE;
+        }
+
+        return Boolean.FALSE;
+    }
+
+    /**
+     * The predicate "x IMMEDIATELY PRECEDES y" applies when both x and y are either period names or
+     * period constructors. In this case, the predicate returns True if the end value of x is equal to the start value
+     * of y, i.e., if xe = ys.
+     * <p>
+     *
+     * @param session
+     * @param a First period to compare
+     * @param ta Types of the first period
+     * @param b Second period to compare
+     * @param tb Type of the second period
+     *
+     * @return {@link Boolean#TRUE} if period a immediately precedes period b,
+     *          else {@link Boolean#FALSE}
+     */
+    public static Boolean immediatelyPrecedes(Session session, Object[] a,
+            Type[] ta, Object[] b, Type[] tb) {
+
+        Type commonType = normalizeInput(session, a, ta, b, tb, false);
+
+        if (commonType == null) {
+            return null;
+        }
+
+        if (commonType.compare(session, a[1], b[0]) == 0) {
+            return Boolean.TRUE;
+        }
+
+        return Boolean.FALSE;
+    }
+
+    /**
+     * The predicate "x IMMEDIATELY SUCCEEDS y" applies when both x and y are either period names or
+     * period constructors. In this case, the predicate returns True if the start value of x is equal to the end value
+     * of y, i.e., if xs = ye.
+     * <p>
+     *
+     * @param session
+     * @param a First period to compare
+     * @param ta Types of the first period
+     * @param b Second period to compare
+     * @param tb Type of the second period
+     *
+     * @return {@link Boolean#TRUE} if period a immediately succeeds period b,
+     *          else {@link Boolean#FALSE}
+     */
+    public static Boolean immediatelySucceeds(Session session, Object[] a,
+            Type[] ta, Object[] b, Type[] tb) {
+
+        Type commonType = normalizeInput(session, a, ta, b, tb, false);
+
+        if (commonType == null) {
+            return null;
+        }
+
+        if (commonType.compare(session, a[0], b[1]) == 0) {
+            return Boolean.TRUE;
+        }
+
+        return Boolean.FALSE;
+    }
+
+    /**
+     * The predicate "x SUCCEEDS y" applies when both x and y are either period names or period constructors.
+     * In this case, the predicate returns True if the start value of x is greater than or equal to the end value of y,
+     * i.e., if xs >= ye.
+     * <p>
+     *
+     * @param session
+     * @param a First period to compare
+     * @param ta Types of the first period
+     * @param b Second period to compare
+     * @param tb Type of the second period
+     *
+     * @return {@link Boolean#TRUE} if period a succeeds period b,
+     *          else {@link Boolean#FALSE}
+     */
+    public static Boolean succeeds(Session session, Object[] a, Type[] ta,
+                                   Object[] b, Type[] tb) {
+
+        Type commonType = normalizeInput(session, a, ta, b, tb, false);
+
+        if (commonType == null) {
+            return null;
+        }
+
+        if (commonType.compare(session, a[0], b[1]) >= 0) {
+            return Boolean.TRUE;
+        }
+
+        return Boolean.FALSE;
+    }
+
+    /**
+     * The predicate "x EQUALS y" applies when both x and y are either period names or period constructors.
+     * This predicate returns True if the two periods have every time point in common, i.e., if xs = ys and xe = ye.
+     * <p>
+     *
+     * @param session
+     * @param a First period to compare
+     * @param ta Types of the first period
+     * @param b Second period to compare
+     * @param tb Type of the second period
+     *
+     * @return {@link Boolean#TRUE} if period a equals period b,
+     *          else {@link Boolean#FALSE}
+     */
+    public static Boolean equals(Session session, Object[] a, Type[] ta,
+                                 Object[] b, Type[] tb) {
+
+        Type commonType = normalizeInput(session, a, ta, b, tb, false);
+
+        if (commonType == null) {
+            return null;
+        }
+
+        if (commonType.compare(session, a[0], b[0]) == 0
+                && commonType.compare(session, a[1], b[1]) == 0) {
+            return Boolean.TRUE;
+        }
+
+        return Boolean.FALSE;
+    }
+
+    /**
+     * The predicate "x CONTAINS y" applies when<br>
+     * a) both x and y are either period names or period constructors. In this case, the predicate returns True if
+     * x contains every time point in y, i.e., if xs <= ys and xe >= ye.<br>
+     * b) x is either a period name or a period constructor and y is a datetime value expression. In this case, the
+     * predicate returns True if x contains y, i.e., if xs <= y and xe > y.
+     * <p>
+     * The <i>b</i> part of this definition is not supported yet. In order to get the same result, one have to specify
+     * a period with the same date time value for the period start and end.
+     * <p>
+     *
+     * @param session
+     * @param a First period to compare
+     * @param ta Types of the first period
+     * @param b Second period to compare
+     * @param tb Type of the second period
+     *
+     * @return {@link Boolean#TRUE} if period a contains period b,
+     *          else {@link Boolean#FALSE}
+     */
+    public static Boolean contains(Session session, Object[] a, Type[] ta,
+                                   Object[] b, Type[] tb,
+                                   boolean pointOfTime) {
+
+        Type commonType = normalizeInput(session, a, ta, b, tb, pointOfTime);
+
+        if (commonType == null) {
+            return null;
+        }
+
+        int compareStart = commonType.compare(session, a[0], b[0]);
+        int compareEnd   = commonType.compare(session, a[1], b[1]);
+
+        if (compareStart <= 0 && compareEnd >= 0) {
+
+            // if the end of the two period are equals, period a does not
+            // contains period b if it is defined by a single point in time
+            if (pointOfTime) {
+                if (compareEnd == 0) {
+                    return Boolean.FALSE;
+                }
+            }
+
             return Boolean.TRUE;
         }
 
@@ -1793,10 +2185,12 @@ public final class DateTimeType extends DTIType {
     }
 
     //
-    public static int subtractMonths(TimestampData a, TimestampData b,
-                                     boolean isYear) {
+    public static int subtractMonths(Session session, TimestampData a,
+                                     TimestampData b, boolean isYear) {
 
-        synchronized (HsqlDateTime.tempCalGMT) {
+        Calendar calendar = session.getCalendarGMT();
+
+        synchronized (calendar) {
             boolean negate = false;
 
             if (b.getSeconds() > a.getSeconds()) {
@@ -1808,17 +2202,15 @@ public final class DateTimeType extends DTIType {
                 b = temp;
             }
 
-            HsqlDateTime.setTimeInMillis(HsqlDateTime.tempCalGMT,
-                                         a.getSeconds() * 1000);
+            calendar.setTimeInMillis(a.getSeconds() * 1000);
 
-            int months = HsqlDateTime.tempCalGMT.get(Calendar.MONTH);
-            int years  = HsqlDateTime.tempCalGMT.get(Calendar.YEAR);
+            int months = calendar.get(Calendar.MONTH);
+            int years  = calendar.get(Calendar.YEAR);
 
-            HsqlDateTime.setTimeInMillis(HsqlDateTime.tempCalGMT,
-                                         b.getSeconds() * 1000);
+            calendar.setTimeInMillis(b.getSeconds() * 1000);
 
-            months -= HsqlDateTime.tempCalGMT.get(Calendar.MONTH);
-            years  -= HsqlDateTime.tempCalGMT.get(Calendar.YEAR);
+            months -= calendar.get(Calendar.MONTH);
+            years  -= calendar.get(Calendar.YEAR);
 
             if (isYear) {
                 months = years * 12;

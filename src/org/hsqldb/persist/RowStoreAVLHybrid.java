@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,11 +65,9 @@ public class RowStoreAVLHybrid extends RowStoreAVL implements PersistentStore {
     boolean         isCached;
     int             rowIdSequence = 0;
 
-    public RowStoreAVLHybrid(Session session,
-                             PersistentStoreCollection manager,
-                             TableBase table, boolean diskBased) {
+    public RowStoreAVLHybrid(Session session, TableBase table,
+                             boolean diskBased) {
 
-        this.manager           = manager;
         this.table             = table;
         this.maxMemoryRowCount = session.getResultMemoryRowCount();
         this.useDisk           = diskBased;
@@ -102,11 +100,6 @@ public class RowStoreAVLHybrid extends RowStoreAVL implements PersistentStore {
 
     public void setMemory(boolean mode) {
         useDisk = !mode;
-    }
-
-    public synchronized int getAccessCount() {
-        return isCached ? cache.getAccessCount()
-                        : 0;
     }
 
     public void set(CachedObject object) {}
@@ -325,7 +318,6 @@ public class RowStoreAVLHybrid extends RowStoreAVL implements PersistentStore {
             isCached = false;
         }
 
-        manager.removeStore(table);
         elementCount.set(0);
         ArrayUtil.fillArray(accessorList, null);
     }
@@ -369,7 +361,8 @@ public class RowStoreAVLHybrid extends RowStoreAVL implements PersistentStore {
     public final void changeToDiskTable(Session session) {
 
         cache =
-            ((PersistentStoreCollectionSession) manager).getSessionDataCache();
+            session.sessionData.persistentStoreCollection
+                .getSessionDataCache();
         maxMemoryRowCount = Integer.MAX_VALUE;
 
         if (cache == null) {

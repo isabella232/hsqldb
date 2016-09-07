@@ -34,7 +34,7 @@ package org.hsqldb.util.preprocessor;
 import java.io.File;
 import org.apache.tools.ant.Project;
 
-/* $Id$ */
+/* $Id: AntResolver.java 610 2008-12-22 15:54:18Z unsaved $ */
 
 /**
  * Resolves properties and paths using an ANT Project.

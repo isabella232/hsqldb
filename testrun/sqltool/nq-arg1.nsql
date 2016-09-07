@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: nq-arg1.nsql 610 2008-12-22 15:54:18Z unsaved $
  *
  * Test of \q with arg from nested script.
  */

@@ -1,6 +1,6 @@
 #!/local/groovy/bin/groovy
 /*
- * $Id$
+ * $Id: runtests.groovy 4809 2011-11-20 21:12:35Z unsaved $
  * Distribution is permitted under the terms of the HSQLDB license.
  * (c) 2011 The HSQL Development Group
  */

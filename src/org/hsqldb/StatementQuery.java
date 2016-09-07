@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +31,7 @@
 
 package org.hsqldb;
 
+import org.hsqldb.HsqlNameManager.HsqlName;
 import org.hsqldb.ParserDQL.CompileContext;
 import org.hsqldb.error.Error;
 import org.hsqldb.error.ErrorCode;
@@ -59,7 +60,7 @@ public class StatementQuery extends StatementDMQL {
         this.statementReturnType = StatementTypes.RETURN_RESULT;
         this.queryExpression     = queryExpression;
 
-        setDatabseObjects(session, compileContext);
+        setDatabaseObjects(session, compileContext);
         checkAccessRights(session);
     }
 
@@ -116,5 +117,13 @@ public class StatementQuery extends StatementDMQL {
         return queryExpression.isUpdatable
                ? ResultProperties.updatablePropsValue
                : ResultProperties.defaultPropsValue;
+    }
+
+    public void setCursorName(HsqlName name) {
+        cursorName = name;
+    }
+
+    public HsqlName getCursorName() {
+        return cursorName;
     }
 }

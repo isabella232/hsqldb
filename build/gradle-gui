@@ -1,6 +1,6 @@
 #!/bin/bash -p
 
-# $Id$
+# $Id: gradle-gui 4696 2011-11-04 13:30:47Z unsaved $
 # Distribution is permitted under the terms of the HSQLDB license.
 # (c) 2011 The HSQL Development Group
 

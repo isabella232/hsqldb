@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -131,7 +131,7 @@ import org.hsqldb.persist.HsqlProperties;
  * qualified class name ('org.hsqldb.jdbc.JDBCDriver') of the HSQLDB implementation
  * of <code>java.sql.Driver</code>. <p>
  *
- * Hence, under JDBC 4.0 or greater, applications no longer need to explictly
+ * Hence, under JDBC 4.0 or greater, applications no longer need to explicitly
  * load the HSQLDB JDBC driver using <code>Class.forName()</code>. Of course,
  * existing programs which do load JDBC drivers using
  * <code>Class.forName()</code> will continue to work without modification. <p>
@@ -304,7 +304,7 @@ public class JDBCDriver implements Driver {
         }
 
         // @todo:  maybe impose some sort of sane restriction
-        //         on network connections regarless of user
+        //         on network connections regardless of user
         //         specification?
         if (timeout == 0) {
 
@@ -334,8 +334,6 @@ public class JDBCDriver implements Driver {
         };
 
         t.start();
-
-        final long start = System.currentTimeMillis();
 
         try {
             t.join(1000 * timeout);
@@ -544,12 +542,10 @@ public class JDBCDriver implements Driver {
     }
 
 //#endif
-    public static JDBCDriver driverInstance;
+    public static final JDBCDriver driverInstance = new JDBCDriver();
 
     static {
         try {
-            driverInstance = new JDBCDriver();
-
             DriverManager.registerDriver(driverInstance);
         } catch (Exception e) {
         }

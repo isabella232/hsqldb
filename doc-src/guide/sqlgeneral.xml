@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- $Id$ -->
+<!-- $Id: sqlgeneral.xml 5575 2016-03-25 15:50:57Z fredt $ -->
 <!DOCTYPE book [
 <!ENTITY % dummy22 SYSTEM "../entities/global.ent">
 %dummy22;
@@ -28,7 +28,7 @@
       </author>
     </authorgroup>
 
-    <releaseinfo>$Revision$</releaseinfo>
+    <releaseinfo>$Revision: 5575 $</releaseinfo>
 
     <pubdate>&timestamp;</pubdate>
 
@@ -41,7 +41,7 @@
     </keywordset>
 
     <legalnotice>
-      <para>Copyright 2002-2012 Fred Toussi. Permission is granted to
+      <para>Copyright 2002-2016 Fred Toussi. Permission is granted to
       distribute this document without any alteration under the terms of the
       HSQLDB license. Additional permission is granted to the HSQL Development
       Group to distribute this document with or without alterations under the
@@ -52,9 +52,9 @@
   <section xml:id="sgc_standards">
     <title>Standards Support</title>
 
-    <para>HyperSQL 2 supports the dialect of SQL defined by SQL standards 92,
-    1999, 2003, 2008 and 2011. This means where a feature of the standard is
-    supported, e.g. left outer join, the syntax is that specified by the
+    <para>HyperSQL 2.x supports the dialect of SQL defined by SQL standards
+    92, 1999, 2003, 2008 and 2011. This means where a feature of the standard
+    is supported, e.g. left outer join, the syntax is that specified by the
     standard text. Almost all syntactic features of SQL-92 up to Advanced
     Level are supported, as well as SQL:2011 core and many optional features
     of this standard. Work is in progress for a formal declaration of
@@ -267,6 +267,12 @@
         them for other types of data. BIT without the length L argument means
         a single bit and is sometimes used as a logical type. Use BOOLEAN
         instead of this type.</para>
+      </listitem>
+
+      <listitem>
+        <para>The UUID type is for UUID (also called GUID) values. The value
+        is stored as BINARY. UUID character strings, as well as BINARY
+        strings, can be used to insert or to compare.</para>
       </listitem>
 
       <listitem>
@@ -681,11 +687,19 @@
       BLOB is used without specifying the length, the length defaults to
       1GB.</para>
 
+      <para>The UUID type represents a UUID string. The type is similar to
+      BINARY(16) but with the extra enforcement that disallows assigning,
+      casting or compareing with shorter or longer strings. Strings such as
+      '24ff1824-01e8-4dac-8eb3-3fee32ad2b9c' or
+      '24ff182401e84dac8eb33fee32ad2b9c' are allowed. When a value of the UUID
+      type is converted to a CHARACTER type, the hyphens are inserted in the
+      required positions.</para>
+
       <simpara><literal>&lt;binary string type&gt; ::= BINARY [ &lt;left
       paren&gt; &lt;length&gt; &lt;right paren&gt; ] | { BINARY VARYING |
       VARBINARY } &lt;left paren&gt; &lt;length&gt; &lt;right paren&gt; |
       LONGVARBINARY [ &lt;left paren&gt; &lt;length&gt; &lt;right paren&gt; ]
-      | &lt;binary large object string type&gt;</literal></simpara>
+      | UUID | &lt;binary large object string type&gt;</literal></simpara>
 
       <simpara><literal>&lt;binary large object string type&gt; ::= { BINARY
       LARGE OBJECT | BLOB } [ &lt;left paren&gt; &lt;large object length&gt;
@@ -813,18 +827,38 @@
         <primary>OTHER type</primary>
       </indexterm>
 
-      <para>Any serializable JAVA Object can be inserted directly into a
+      <para>From version 2.3.4 there are two options for storing Java
+      Objects.</para>
+
+      <para>The default option allows storing Serializable object. The objects
+      remain serialized inside the database until they are retrieved. The
+      application program that retrieves the object must include in its
+      classpath the Java Class for the object, otherwise it cannot retrieve
+      the object.</para>
+
+      <para>Any serializable Java Object can be inserted directly into a
       column of type OTHER using any variation of
       <methodname>PreparedStatement.setObject()</methodname> methods.</para>
+
+      <para>The alternative Live Object option is for <literal>mem:</literal>
+      databases only and is enabled when the database property
+      sql.live_object=true is appended to the connection property that creates
+      the mem database. For example
+      <literal>'jdbc:hsqldb:mem:mydb;sql.live_object=true'</literal>. With
+      this option, any Java object can be stored as it is not serialized. The
+      SQL statement <literal>SET DATABASE SQL LIVE OBJECT TRUE</literal> can
+      be also used. Note the SQL statement must be executed on the first
+      connection to the database before any data is inserted. No data access
+      should be made from this connection. Instead, new connections should be
+      used for data access.</para>
 
       <para>For comparison purposes and in indexes, any two Java Objects are
       considered equal unless one of them is NULL. You cannot search for a
       specific object or perform a join on a column of type OTHER.</para>
 
-      <para>Please note that HSQLDB is not an object-relational database. Java
-      Objects can simply be stored internally and no operations should be
-      performed on them other than assignment between columns of type OTHER or
-      tests for NULL. Tests such as <literal>WHERE object1 = object2
+      <para>Java Objects can simply be stored internally and no operations can
+      be performed on them other than assignment between columns of type OTHER
+      or checking for NULL. Tests such as <literal>WHERE object1 = object2
       </literal>do not mean what you might expect, as any non-null object
       would satisfy such a tests. But <literal>WHERE object1 IS NOT
       NULL</literal> is perfectly acceptable.</para>
@@ -835,6 +869,30 @@
       objectcol = intcol WHERE ...</literal>).</para>
 
       <simpara><literal>&lt;java object type&gt; ::= OTHER</literal></simpara>
+
+      <para>The default method of storage is used when the objects and their
+      state needs to be saved and retrieved in the future. This method is also
+      used when memory resources are limited and collections of objects are
+      stored and retrieved only when needed.</para>
+
+      <para>The Live Object option uses the database table as a collection of
+      objects. This allows storing some attributes of the objects in the same
+      table alongside the object itself and fast search and retrieval of
+      objects on their attributes. For example when many thousands of live
+      objects contain details of films, The film title and the director can be
+      stored in the table and searches can be performed for films on these
+      attributes:</para>
+
+      <informalexample>
+        <para><programlisting>CREATE TABLE movies (director VARCHAR(30), title VARCHAR(40), obj OTHER)
+SELECT obj FROM movies WHERE director LIKE 'Luc%'
+</programlisting></para>
+
+        <para>In any case, at least one attribute of the object should be
+        stored to allow efficient retrieval of the objects from both Live
+        Object and Serialized storage. Often an id number is used a the
+        attribute.</para>
+      </informalexample>
     </section>
 
     <section xml:id="sgc_length_precision">
@@ -1875,7 +1933,7 @@
   <section xml:id="sgc_query_opt">
     <title>Query Processing and Optimisation</title>
 
-    <para>HyperSQL 2.2.x changes the order of tables in a query in order to
+    <para>HyperSQL 2.3.x changes the order of tables in a query in order to
     optimise processing. This happens only when one of the tables has a
     narrowing condition and reordering does not change the result of the
     query.</para>

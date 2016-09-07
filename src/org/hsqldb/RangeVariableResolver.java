@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -184,8 +184,7 @@ public class RangeVariableResolver {
                     int index = rangeVarSet.getIndex(range);
 
                     if (index > 0) {
-                        rangeVariables[index].isLeftJoin      = false;
-                        rangeVariables[index - 1].isRightJoin = false;
+                        rangeVariables[index].isLeftJoin = false;
                     }
                 }
 
@@ -196,8 +195,7 @@ public class RangeVariableResolver {
                     int index = rangeVarSet.getIndex(range);
 
                     if (index > 0) {
-                        rangeVariables[index].isLeftJoin      = false;
-                        rangeVariables[index - 1].isRightJoin = false;
+                        rangeVariables[index].isLeftJoin = false;
                     }
                 }
             }
@@ -1021,8 +1019,8 @@ public class RangeVariableResolver {
                     continue;
                 }
                 case OpTypes.EQUAL : {
-                    if (e.exprSubType == OpTypes.ANY_QUANTIFIED
-                            || e.exprSubType == OpTypes.ALL_QUANTIFIED) {
+                    if (e.getSubType() == OpTypes.ANY_QUANTIFIED
+                            || e.getSubType() == OpTypes.ALL_QUANTIFIED) {
                         continue;
                     }
 
@@ -1090,7 +1088,7 @@ public class RangeVariableResolver {
                 }
                 default : {
                     throw Error.runtimeError(ErrorCode.U_S0500,
-                                       "RangeVariableResolver");
+                                             "RangeVariableResolver");
                 }
             }
         }
@@ -1521,7 +1519,8 @@ public class RangeVariableResolver {
                 rangeVariables = newList;
 
                 // make two columns as arg
-                Expression[] exprList = new Expression[index.getColumnCount()];
+                Expression[] firstRowExpressions =
+                    new Expression[index.getColumnCount()];
 
                 for (int j = 0; j < indexedColCount; j++) {
                     int leftIndex  = index.getColumns()[j];
@@ -1530,7 +1529,7 @@ public class RangeVariableResolver {
                                                          newRangeVar,
                                                          rightIndex);
 
-                    exprList[j] = e;
+                    firstRowExpressions[j] = e;
                 }
 
                 boolean isOuter = rangeVariables[i].isLeftJoin
@@ -1539,7 +1538,8 @@ public class RangeVariableResolver {
                     !inInJoin[i] && isOuter ? rangeVar.whereConditions[0]
                                             : rangeVar.joinConditions[0];
 
-                conditions.addIndexCondition(exprList, index, indexedColCount);
+                conditions.addIndexCondition(firstRowExpressions, index,
+                                             indexedColCount);
 
                 for (int j = 0; j < set.size(); j++) {
                     int leftIndex  = set.get(j);

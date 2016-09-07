@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# $Id$
+# $Id: sample.py 3633 2010-06-06 23:56:41Z unsaved $
 
 # Sample Python script accessing HyperSQL through the Python pyodbc module.
 

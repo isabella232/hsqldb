@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,13 +42,13 @@ import org.hsqldb.persist.HsqlDatabaseProperties;
 
 /**
  * Defines the constants that are used to identify SQL types for HSQLDB JDBC
- * inteface type reporting. The actual type constant values are equivalent
+ * interface type reporting. The actual type constant values are equivalent
  * to those defined in the latest java.sql.Types, where available,
- * or those defined by ansi/iso SQL 2003 otherwise. A type sub-identifer
+ * or those defined by ansi/iso SQL 2003 otherwise. A type sub-identifier
  * has been added to differentiate HSQLDB-specific type specializations.
  *
  * @author Campbell Burnet (boucherb@users dot sourceforge.net)
- * @version 2.3.0
+ * @version 2.3.4
  * @since 1.7.2
  */
 public class Types {
@@ -118,7 +118,7 @@ public class Types {
 
     // These values are not in table 37 of the SQL CLI 2003 FCD, but some
     // are found in tables 6-9 and some are found in Annex A1:
-    // c Header File SQLCLI.H and/or addendums in other documents,
+    // c Header File SQLCLI.H and/or addenda in other documents,
     // such as:
     // SQL 2003 Part 9: Management of External Data (SQL/MED) : DATALINK
     // SQL 2003 Part 14: XML-Related Specifications (SQL/XML) : XML
@@ -195,7 +195,7 @@ public class Types {
     public static final int BLOB = 2004;
 
     /**
-     * The constant in the Java programming language, somtimes referred to
+     * The constant in the Java programming language, sometimes referred to
      * as a type code, that identifies the generic SQL type
      * <code>BOOLEAN</code>.
      *
@@ -220,7 +220,7 @@ public class Types {
     public static final int CLOB = 2005;
 
     /**
-     * The constant in the Java programming language, somtimes referred to
+     * The constant in the Java programming language, sometimes referred to
      * as a type code, that identifies the generic SQL type <code>DATALINK</code>.
      *
      * @since JDK 1.4
@@ -396,7 +396,7 @@ public class Types {
 //     * <code>XML</code>.
 //     *
 //     * @since SQL 2003
-//     * @deprectated
+//     * @deprecated
 //     * @see #SQLXML
 //     */
 //    public static final int XML = 137;
@@ -456,7 +456,7 @@ public class Types {
     /**
      * The default HSQLODB type sub-identifier. This indicates that an
      * HSQLDB type with this sub-type, if supported, is the very closest
-     * thing HSQLDB offerers to the JDBC/SQL2003 type
+     * thing HSQLDB offers to the JDBC/SQL2003 type
      */
     public static final int TYPE_SUB_DEFAULT = 1;
 
@@ -550,6 +550,7 @@ public class Types {
         javaTypeNumbers.put("double", Types.SQL_DOUBLE);
         javaTypeNumbers.put("java.lang.Double", Types.SQL_DOUBLE);
         javaTypeNumbers.put("java.lang.String", Types.SQL_VARCHAR);
+        javaTypeNumbers.put("java.lang.CharSequence", Types.SQL_VARCHAR);
         javaTypeNumbers.put(DateClassName, Types.SQL_DATE);
         javaTypeNumbers.put(TimeClassName, Types.SQL_TIME);
         javaTypeNumbers.put(TimestampClassName, Types.SQL_TIMESTAMP);
@@ -583,7 +584,7 @@ public class Types {
     }
 
     /**
-     * Retieves the type object corresponding to the class
+     * Retrieves the type object corresponding to the class
      * of an IN, IN OUT or OUT parameter or a return type.  <p>
      *
      *
@@ -593,9 +594,8 @@ public class Types {
      */
     public static Type getParameterSQLType(Class c) {
 
-        String  name;
-        int     typeCode;
-        boolean isArray;
+        String name;
+        int    typeCode;
 
         if (c == null) {
             throw Error.runtimeError(ErrorCode.U_S0500, "Types");
@@ -618,15 +618,15 @@ public class Types {
             name     = c1.getName();
             typeCode = javaTypeNumbers.get(name, Integer.MIN_VALUE);
 
-            if (typeCode != Integer.MIN_VALUE) {
-                return Type.getDefaultTypeWithSize(typeCode);
-            }
-
             if (typeCode == Types.SQL_ALL_TYPES) {
                 return null;
             }
 
-            return Type.getDefaultTypeWithSize(typeCode);
+            if (typeCode != Integer.MIN_VALUE) {
+                return Type.getDefaultTypeWithSize(typeCode);
+            }
+
+            return null;
         }
 
         if (name.equals("java.sql.Array")) {

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- $Id$ -->
+<!-- $Id: listeners.xml 5639 2016-05-15 19:37:38Z unsaved $ -->
 <!DOCTYPE book [
 <!ENTITY % dummy22 SYSTEM "../entities/global.ent">
 %dummy22;
@@ -32,7 +32,7 @@
       </author>
     </authorgroup>
 
-    <releaseinfo>$Revision$</releaseinfo>
+    <releaseinfo>$Revision: 5639 $</releaseinfo>
 
     <pubdate>&timestamp;</pubdate>
 
@@ -47,7 +47,7 @@
     </keywordset>
 
     <legalnotice>
-      <para>Copyright 2002-2012 Fred Toussi. Permission is granted to
+      <para>Copyright 2002-2016 Fred Toussi. Permission is granted to
       distribute this document without any alteration under the terms of the
       HSQLDB license. Additional permission is granted to the HSQL Development
       Group to distribute this document with or without alterations under the
@@ -71,10 +71,12 @@
       fastest one. This mode uses the proprietary <glossterm>hsql:</glossterm>
       communications protocol. The following example of the command for
       starting the server starts the server with one (default) database with
-      files named "mydb.*" and the public name (alias) of "xdb".</para>
+      files named "mydb.*" and the public name (alias) of "xdb". Note the
+      database property to set the transaction mode to MVCC is appended to the
+      database file path.</para>
 
       <informalexample>
-        <screen> java -cp ../lib/hsqldb.jar org.hsqldb.server.Server --database.0 file:mydb --dbname.0 xdb</screen>
+        <screen> java -cp ../lib/hsqldb.jar org.hsqldb.server.Server --database.0 file:mydb;hsqldb.tx=mvcc --dbname.0 xdb</screen>
       </informalexample>
 
       <para>Alternatively, a server.properties file can be used for passing
@@ -458,6 +460,25 @@
  server.setErrWriter(null); // can use custom writer
  server.start();
 </programlisting>
+  </section>
+
+  <section xml:id="lsc_app_stop">
+    <title>Shutting down a Server from your Application</title>
+
+    <para>To shut down the server, you can execute the SQL "SHUTDOWN"
+    statement on the server databases. When you start the server from your
+    application and keep a reference to the java Server object, you can also
+    shut it down programatically. Calling the <literal>shutdownCatalogs(int
+    shutdownMode)</literal> method of
+    <classname>org.hsqldb.server.Server</classname> closes all the open
+    databases, which results in server shtudown. The parameter value is
+    normally 1, which indicates normal shutdown. Other modes of shutdown, such
+    as SHUTDOWN IMMEDIATELY are also supported. See the javadoc for
+    <classname>org.hsqldb.server.Server</classname>. See the example
+    below:</para>
+
+    <programlisting> server.shutdownCatalogs(1);
+</programlisting>
 
     <para>The Server object has several alternative methods for setting
     databases and their public names. The server should be shutdown using the
@@ -541,7 +562,7 @@ Connection c = DriverManager.getConnection("jdbc:hsqldb:hsql://localhost/xdb;fil
         </author>
       </authorgroup>
 
-      <releaseinfo>$Revision$</releaseinfo>
+      <releaseinfo>$Revision: 5639 $</releaseinfo>
 
       <pubdate>&timestamp;</pubdate>
 

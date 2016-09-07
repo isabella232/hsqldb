@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,6 +52,7 @@ import org.hsqldb.rowio.RowInputInterface;
 import org.hsqldb.rowio.RowOutputBinary180;
 import org.hsqldb.rowio.RowOutputBinaryEncode;
 import org.hsqldb.rowio.RowOutputInterface;
+import org.hsqldb.Session;
 
 /**
  * Acts as a manager for CACHED table persistence.<p>
@@ -174,7 +175,7 @@ public class DataFileCache {
         if (database.logger.getDataFileSpaces() > 0) {
             spaceManager = new DataSpaceManagerBlocks(this);
         } else {
-            spaceManager = new DataSpaceManagerSimple(this);
+            spaceManager = new DataSpaceManagerSimple(this, false);
         }
     }
 
@@ -245,7 +246,7 @@ public class DataFileCache {
 
             if (readonly || database.isFilesInJar()) {
                 dataFile = RAFile.newScaledRAFile(database, dataFileName,
-                                                  readonly, fileType);
+                                                  true, fileType);
 
                 int flags = getFlags();
 
@@ -266,7 +267,7 @@ public class DataFileCache {
 
                 initBuffers();
 
-                spaceManager = new DataSpaceManagerSimple(this);
+                spaceManager = new DataSpaceManagerSimple(this, true);
 
                 return;
             }
@@ -388,7 +389,7 @@ public class DataFileCache {
             if (database.logger.getDataFileSpaces() > 0) {
                 spaceManager = new DataSpaceManagerBlocks(this);
             } else {
-                spaceManager = new DataSpaceManagerSimple(this);
+                spaceManager = new DataSpaceManagerSimple(this, false);
             }
 
             logInfoEvent("dataFileCache open end");
@@ -423,7 +424,7 @@ public class DataFileCache {
             if (fileSpaceSize == 0 && spaceManagerPosition != 0) {
                 spaceManager.reset();
 
-                spaceManager = new DataSpaceManagerSimple(this);
+                spaceManager = new DataSpaceManagerSimple(this, false);
 
                 return true;
             }
@@ -504,7 +505,7 @@ public class DataFileCache {
 
             fileModified  = false;
             cacheModified = false;
-            spaceManager  = new DataSpaceManagerSimple(this);
+            spaceManager  = new DataSpaceManagerSimple(this, false);
 
             logInfoEvent("dataFileCache open end");
         } catch (Throwable t) {
@@ -838,7 +839,7 @@ public class DataFileCache {
         }
     }
 
-    DataFileDefrag defrag() {
+    DataFileDefrag defrag(Session session) {
 
         writeLock.lock();
 
@@ -847,7 +848,7 @@ public class DataFileCache {
 
             DataFileDefrag dfd = new DataFileDefrag(database, this);
 
-            dfd.process();
+            dfd.process(session);
             close();
             cache.clear();
 
@@ -1209,17 +1210,9 @@ public class DataFileCache {
         writeLock.lock();
 
         try {
-            Iterator it = cache.getIterator();
+            cacheModified = true;
 
-            while (it.hasNext()) {
-                CachedObject o   = (CachedObject) it.next();
-                long         pos = o.getPos();
-
-                if (pos >= startPos && pos < limitPos) {
-                    o.setInMemory(false);
-                    it.remove();
-                }
-            }
+            cache.releaseRange(startPos, limitPos);
         } finally {
             writeLock.unlock();
         }
@@ -1230,6 +1223,8 @@ public class DataFileCache {
         writeLock.lock();
 
         try {
+            cacheModified = true;
+
             cache.releaseRange(list, fileBlockItemCount);
         } finally {
             writeLock.unlock();
@@ -1241,6 +1236,8 @@ public class DataFileCache {
         writeLock.lock();
 
         try {
+            cacheModified = true;
+
             return cache.release(pos);
         } finally {
             writeLock.unlock();
@@ -1253,8 +1250,9 @@ public class DataFileCache {
             return;
         }
 
-        int  pageCount = copyShadow(rows, offset, count);
-        long startTime = cache.saveAllTimer.elapsedTime();
+        int  pageCount   = copyShadow(rows, offset, count);
+        long startTime   = cache.saveAllTimer.elapsedTime();
+        long storageSize = 0;
 
         cache.saveAllTimer.start();
 
@@ -1267,11 +1265,12 @@ public class DataFileCache {
 
             saveRowNoLock(r);
 
-            rows[i] = null;
+            rows[i]     = null;
+            storageSize += r.getStorageSize();
         }
 
         cache.saveAllTimer.stop();
-        cache.logSaveRowsEvent(count, startTime);
+        cache.logSaveRowsEvent(count, storageSize, startTime);
     }
 
     /**
@@ -1568,10 +1567,6 @@ public class DataFileCache {
 
     public int getCachedObjectCount() {
         return cache.size();
-    }
-
-    public int getAccessCount() {
-        return cache.incrementAccessCount();
     }
 
     public String getFileName() {

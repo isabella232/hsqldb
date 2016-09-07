@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: comments.sql 5406 2014-10-13 20:53:18Z unsaved $
  *
  * Tests comments.  This comment itself is a multi-line comment
  */

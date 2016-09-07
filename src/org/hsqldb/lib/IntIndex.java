@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2014, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,6 @@ public class IntIndex {
     private boolean       hasChanged;
     private final boolean fixedSize;
     private int[]         keys;
-    private int[]         values;
 
 //
     private int targetSearchValue;
@@ -148,12 +147,11 @@ public class IntIndex {
     }
 
     /**
-     * Adds a key, value pair into the table with the guarantee that the key
+     * Adds a key into the table with the guarantee that the key
      * is equal or larger than the largest existing key. This prevents a sort
      * from taking place on next call to find()
      *
      * @param key the key
-     * @param value the value
      * @return true or false depending on success
      */
     public synchronized boolean addSorted(int key) {
@@ -322,8 +320,6 @@ public class IntIndex {
                 if (i - baseIndex + 1 == count) {
                     return baseIndex;
                 }
-
-                continue;
             } else {
                 baseIndex = -1;
             }
@@ -672,7 +668,6 @@ public class IntIndex {
         count--;
 
         keys[count]   = 0;
-        values[count] = 0;
     }
 
     /**
@@ -700,7 +695,7 @@ public class IntIndex {
 
     /**
      * push key, value pair
-     * @return boolean true if susseful
+     * @return boolean true if successful
      */
     private boolean push(int key) {
         return addUnsorted(key);

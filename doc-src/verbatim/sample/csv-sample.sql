@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: csv-sample.sql 4812 2011-11-20 21:31:49Z unsaved $
  *
  * Create a table, CVSV-export the data, import it back.
  */

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: nullempty.sql 4709 2011-11-05 01:50:17Z unsaved $
  *
  * This sample shows differences between null and empty strings,
  * and ? var vs. _/~ variables.

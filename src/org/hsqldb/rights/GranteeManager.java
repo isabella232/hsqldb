@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -250,6 +250,7 @@ public class GranteeManager {
         if (!grantor.isGrantable(dbObject, right)) {
             session.addWarning(Error.error(ErrorCode.W_01007,
                                            grantor.getName().getNameString()));
+
             return;
         }
 
@@ -383,13 +384,13 @@ public class GranteeManager {
             if (grant) {
                 if (grantee.getDirectRoles().contains(role)) {
 
-                    /** @todo  shouldnt throw */
+                    /** @todo  shouldn't throw */
                     throw Error.error(ErrorCode.X_0P000, granteeName);
                 }
             } else {
                 if (!grantee.getDirectRoles().contains(role)) {
 
-                    /** @todo  shouldnt throw */
+                    /** @todo  shouldn't throw */
                     throw Error.error(ErrorCode.X_0P000, roleName);
                 }
             }
@@ -852,7 +853,7 @@ public class GranteeManager {
         return array;
     }
 
-    public String[] getRightstSQL() {
+    public String[] getRightsSQL() {
 
         HsqlArrayList list     = new HsqlArrayList();
         Iterator      grantees = getGrantees().iterator();

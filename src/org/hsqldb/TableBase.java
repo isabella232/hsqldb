@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -248,7 +248,7 @@ public class TableBase implements Cloneable {
 
     /**
      * This method is called whenever there is a change to table structure and
-     * serves two porposes: (a) to reset the best set of columns that identify
+     * serves two purposes: (a) to reset the best set of columns that identify
      * the rows of the table (b) to reset the best index that can be used
      * to find rows of the table given a column value.
      *
@@ -430,7 +430,7 @@ public class TableBase implements Cloneable {
     public void dropIndex(Session session, int todrop) {
 
         Index[] list = (Index[]) ArrayUtil.toAdjustedArray(indexList, null,
-                todrop, -1);
+            todrop, -1);
 
         for (int i = 0; i < list.length; i++) {
             list[i].setPosition(i);
@@ -505,7 +505,7 @@ public class TableBase implements Cloneable {
             case TableBase.INFO_SCHEMA_TABLE :
             case TableBase.TEMP_TABLE : {
 
-                // session may be an unregisterd sys session
+                // session may be an unregistered sys session
                 session.sessionData.persistentStoreCollection
                     .resetAccessorKeys(session, (Table) this, indexes);
 

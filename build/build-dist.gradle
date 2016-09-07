@@ -1,5 +1,5 @@
 /**
- * $Id$
+ * $Id: build-dist.gradle 5457 2015-04-09 01:11:00Z unsaved $
  *
  * Invoke this build file with Gradle's -b switch for zip and jar
  * distribution building.

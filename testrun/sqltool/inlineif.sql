@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: inlineif.sql 4706 2011-11-05 01:21:45Z unsaved $
  *
  * Tests PL control flow.  if, foreach statements, etc.
  */

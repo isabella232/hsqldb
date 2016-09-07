@@ -34,7 +34,7 @@ package org.hsqldb.jdbc;
 import java.sql.SQLException;
 import java.sql.Savepoint;
 
-/* $Id$ */
+/* $Id: JDBCSavepoint.java 5160 2013-02-02 20:10:25Z fredt $ */
 
 // Revision 1.10  2006/07/12 12:38:22  boucherb
 // - full synch up to Mustang b90

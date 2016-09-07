@@ -34,7 +34,7 @@ package org.hsqldb.lib.tar;
 import org.hsqldb.lib.ValidatingResourceBundle;
 import org.hsqldb.lib.RefCapableRBInterface;
 
-/* $Id$ */
+/* $Id: RB.java 5437 2015-03-09 23:45:20Z fredt $ */
 
 /**
  * Resource Bundle for Tar classes

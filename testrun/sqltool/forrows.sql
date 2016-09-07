@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: forrows.sql 5445 2015-03-22 18:06:13Z unsaved $
  *
  * Tests forrows iterator
  */

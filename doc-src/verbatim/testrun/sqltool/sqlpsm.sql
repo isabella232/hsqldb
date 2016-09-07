@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: sqlpsm.sql 5407 2014-10-13 21:16:17Z unsaved $
  *
  * Tests SQL/JRT
  */

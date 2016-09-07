@@ -1,5 +1,5 @@
 
-:: $Id$
+:: $Id: runtests.cmd 4697 2011-11-04 13:32:05Z unsaved $
 :: Distribution is permitted under the terms of the HSQLDB license.
 :: (c) 2011 The HSQL Development Group
 ::

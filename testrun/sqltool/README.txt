@@ -1,4 +1,4 @@
-$Id$
+$Id: README.txt 5304 2013-10-20 19:34:25Z unsaved $
 
 SqlTool Unit Tests
 since:  HSQLDB 1.8.0.8

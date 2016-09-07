@@ -1,5 +1,5 @@
 /*
- * @(#)$Id$
+ * @(#)$Id: sample.c 3648 2010-06-08 22:44:25Z unsaved $
  *
  * HyperSQL Database Engine
  *

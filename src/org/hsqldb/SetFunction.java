@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,6 @@
 
 package org.hsqldb;
 
-import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
@@ -62,7 +61,7 @@ import org.hsqldb.types.Types;
  * @since 1.7.2
  *
  */
-public class SetFunction implements Serializable {
+public class SetFunction {
 
     private HashSet distinctValues;
     private boolean isDistinct;
@@ -319,8 +318,8 @@ public class SetFunction implements Serializable {
                     case Types.SQL_SMALLINT :
                     case Types.SQL_INTEGER :
                         if (returnType.scale != 0) {
-                            return returnType.divide(session, currentLong,
-                                                     count);
+                            return returnType.divide(session, Long.valueOf(currentLong),
+                                                     Long.valueOf(count));
                         }
 
                         return Long.valueOf(currentLong / count);
@@ -343,13 +342,13 @@ public class SetFunction implements Serializable {
                                 new BigDecimal(count), BigDecimal.ROUND_DOWN);
                         } else {
                             return returnType.divide(session,
-                                                     currentBigDecimal, count);
+                                                     currentBigDecimal, Long.valueOf(count));
                         }
                     case Types.SQL_INTERVAL : {
                         BigInteger bi =
                             getLongSum().divide(BigInteger.valueOf(count));
 
-                        if (!NumberType.isInLongLimits(bi)) {
+                        if (NumberType.compareToLongLimits(bi) != 0) {
                             throw Error.error(ErrorCode.X_22015);
                         }
 
@@ -369,7 +368,7 @@ public class SetFunction implements Serializable {
                         BigInteger bi =
                             getLongSum().divide(BigInteger.valueOf(count));
 
-                        if (!NumberType.isInLongLimits(bi)) {
+                        if (NumberType.compareToLongLimits(bi) != 0) {
                             throw Error.error(ErrorCode.X_22015);
                         }
 
@@ -405,7 +404,7 @@ public class SetFunction implements Serializable {
                     case Types.SQL_INTERVAL : {
                         BigInteger bi = getLongSum();
 
-                        if (!NumberType.isInLongLimits(bi)) {
+                        if (NumberType.compareToLongLimits(bi) != 0) {
                             throw Error.error(ErrorCode.X_22015);
                         }
 
@@ -616,7 +615,7 @@ public class SetFunction implements Serializable {
 
     // end long sum
     // statistics support - written by Campbell
-    // this section was orginally an independent class
+    // this section was originally an independent class
     private double  sk;
     private double  vk;
     private long    n;

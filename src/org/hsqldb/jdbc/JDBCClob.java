@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2011, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@ import org.hsqldb.error.ErrorCode;
 import org.hsqldb.lib.KMPSearchAlgorithm;
 import org.hsqldb.lib.java.JavaSystem;
 
-/* $Id$ */
+/* $Id: JDBCClob.java 5552 2016-03-12 21:32:03Z fredt $ */
 
 // boucherb@users 2004-03/04-xx - doc 1.7.2 - javadocs updated; methods put in
 //                                            correct (historical, interface
@@ -194,7 +194,7 @@ public class JDBCClob implements Clob {
         final int    dlen = data.length();
 
         if (pos < MIN_POS || pos > dlen) {
-            JDBCUtil.outOfRangeArgument("pos: " + pos);
+            throw JDBCUtil.outOfRangeArgument("pos: " + pos);
         }
         pos--;
 
@@ -372,7 +372,7 @@ public class JDBCClob implements Clob {
      * initially empty Clob instances. To propagate the Clob value to a database
      * in this case, it is required to supply the Clob instance to an updating
      * or inserting setXXX method of a Prepared or Callable Statement, or to
-     * supply the Clob instance to an updateXXX method of an updateable
+     * supply the Clob instance to an updateXXX method of an updatable
      * ResultSet. <p>
      *
      * <b>Implementation Notes:</b><p>
@@ -442,7 +442,7 @@ public class JDBCClob implements Clob {
      * initially empty Clob instances. To propagate the Clob value to a database
      * in this case, it is required to supply the Clob instance to an updating
      * or inserting setXXX method of a Prepared or Callable Statement, or to
-     * supply the Clob instance to an updateXXX method of an updateable
+     * supply the Clob instance to an updateXXX method of an updatable
      * ResultSet. <p>
      *
      * <b>Implementation Notes:</b><p>
@@ -569,7 +569,7 @@ public class JDBCClob implements Clob {
      * initially empty Clob instances. To propagate the Clob value to a database
      * in this case, it is required to supply the Clob instance to an updating
      * or inserting setXXX method of a Prepared or Callable Statement, or to
-     * supply the Clob instance to an updateXXX method of an updateable
+     * supply the Clob instance to an updateXXX method of an updatable
      * ResultSet. <p>
      *
      * <b>Implementation Notes:</b><p>
@@ -668,7 +668,7 @@ public class JDBCClob implements Clob {
      * initially empty Clob instances. To propagate the Clob value to a database
      * in this case, it is required to supply the Clob instance to an updating
      * or inserting setXXX method of a Prepared or Callable Statement, or to
-     * supply the Clob instance to an updateXXX method of an updateable
+     * supply the Clob instance to an updateXXX method of an updatable
      * ResultSet. <p>
      *
      * <b>Implementation Notes:</b><p>
@@ -761,7 +761,7 @@ public class JDBCClob implements Clob {
      * a database in this case, it is required to supply the Clob instance to
      * an updating or inserting setXXX method of a Prepared or Callable
      * Statement, or to supply the Blob instance to an updateXXX method of an
-     * updateable ResultSet. <p>
+     * updatable ResultSet. <p>
      *
      * <b>Implementation Notes:</b> <p>
      *

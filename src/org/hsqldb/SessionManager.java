@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2011, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ import org.hsqldb.rights.User;
  * Responsible for managing opening and closing of sessions.
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.0.1
+ * @version 2.3.4
  * @since 1.7.2
  */
 public class SessionManager {
@@ -167,7 +167,7 @@ public class SessionManager {
     /**
      * Retrieves a transient transaction session.
      */
-    public Session newSysSession() {
+    synchronized public Session newSysSession() {
 
         Session session = new Session(sysSession.database,
                                       sysSession.getUser(), false, false,
@@ -183,7 +183,7 @@ public class SessionManager {
         return session;
     }
 
-    public Session newSysSession(HsqlName schema, User user) {
+    synchronized public Session newSysSession(HsqlName schema, User user) {
 
         Session session = new Session(sysSession.database, user, false, false,
                                       0, null, 0);
@@ -203,6 +203,10 @@ public class SessionManager {
 
         for (int i = 0; i < sessions.length; i++) {
             sessions[i].close();
+        }
+
+        synchronized(this) {
+            sessionMap.clear();
         }
     }
 
@@ -267,7 +271,9 @@ public class SessionManager {
         for (int i = 0; it.hasNext(); i++) {
             Session session = (Session) it.next();
 
-            if (userName.equals(session.getUser().getName().getNameString())) {
+            if (!session.isClosed()
+                    && userName.equals(
+                        session.getUser().getName().getNameString())) {
                 return true;
             }
         }

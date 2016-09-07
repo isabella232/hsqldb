@@ -33,7 +33,7 @@ package org.hsqldb.cmdline.sqltool;
 
 import java.util.regex.Pattern;
 
-/* @(#)$Id$ */
+/* @(#)$Id: Token.java 5337 2014-01-24 19:26:47Z fredt $ */
 
 public class Token {
     public static final int SQL_TYPE = 0;

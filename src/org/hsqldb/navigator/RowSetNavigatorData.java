@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,6 @@
 
 package org.hsqldb.navigator;
 
-import java.io.IOException;
 import java.util.Comparator;
 import java.util.TreeMap;
 
@@ -40,6 +39,7 @@ import org.hsqldb.QuerySpecification;
 import org.hsqldb.Row;
 import org.hsqldb.Session;
 import org.hsqldb.SortAndSlice;
+import org.hsqldb.TableBase;
 import org.hsqldb.error.Error;
 import org.hsqldb.error.ErrorCode;
 import org.hsqldb.index.Index;
@@ -70,11 +70,10 @@ implements Comparator {
     Object[][] table = emptyTable;
 
     //
-    final Session session;
-    int           visibleColumnCount;
-    boolean       isAggregate;
-    boolean       isSimpleAggregate;
-    Object[]      simpleAggregateData;
+    int      visibleColumnCount;
+    boolean  isAggregate;
+    boolean  isSimpleAggregate;
+    Object[] simpleAggregateData;
 
     //
     boolean reindexTable;
@@ -184,7 +183,7 @@ implements Comparator {
     }
 
     public boolean addRow(Row row) {
-        throw Error.runtimeError(ErrorCode.U_S0500, "RowSetNavigatorClient");
+        throw Error.runtimeError(ErrorCode.U_S0500, "RowSetNavigatorData");
     }
 
     public void update(Object[] oldData, Object[] newData) {
@@ -240,6 +239,8 @@ implements Comparator {
         this.size  = 0;
 
         reset();
+
+        isClosed = true;
     }
 
     public void clear() {
@@ -268,7 +269,7 @@ implements Comparator {
     }
 
     public Row getCurrentRow() {
-        throw Error.runtimeError(ErrorCode.U_S0500, "RowSetNavigatorClient");
+        throw Error.runtimeError(ErrorCode.U_S0500, "RowSetNavigatorData");
     }
 
     public Object[] getNextRowData() {
@@ -693,18 +694,19 @@ implements Comparator {
 
         public void removeCurrent() {}
 
-        public boolean setRowColumns(boolean[] columns) {
-            return false;
-        }
-
         public void release() {}
 
         public long getRowId() {
             return 0L;
         }
+
+        public TableBase getCurrentTable() {
+            return null;
+        }
     }
 
     public int compare(Object a, Object b) {
-        return mainIndex.compareRow(session, (Object[]) a, (Object[]) b);
+        return mainIndex.compareRow((Session) session, (Object[]) a,
+                                    (Object[]) b);
     }
 }

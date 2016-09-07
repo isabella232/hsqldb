@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2014, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,7 @@ import org.hsqldb.types.Types;
  * operation.<p>
  *
  * Was reviewed for 1.7.2 resulting in centralising all DATETIME related
- * operstions.<p>
+ * operations.<p>
  *
  * From version 2.0.0, HSQLDB supports TIME ZONE with datetime types. The
  * values are stored internally as UTC seconds from 1970, regardless of the
@@ -60,7 +60,7 @@ import org.hsqldb.types.Types;
  * timezone.
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.0
+ * @version 2.3.4
  * @since 1.7.0
  */
 public class HsqlDateTime {
@@ -69,7 +69,7 @@ public class HsqlDateTime {
      * A reusable static value for today's date. Should only be accessed
      * by getToday()
      */
-    private static Locale        defaultLocale = Locale.UK;
+    public static Locale         defaultLocale = Locale.UK;
     private static long          currentDateMillis;
     public static final Calendar tempCalDefault = new GregorianCalendar();
     public static final Calendar tempCalGMT =
@@ -216,19 +216,24 @@ public class HsqlDateTime {
 
     public static long convertMillisFromCalendar(Calendar calendar,
             long millis) {
+        return convertMillisFromCalendar(tempCalGMT, calendar, millis);
+    }
 
-        synchronized (tempCalGMT) {
+    public static long convertMillisFromCalendar(Calendar clendarGMT,
+            Calendar calendar, long millis) {
+
+        synchronized (clendarGMT) {
             synchronized (calendar) {
-                tempCalGMT.clear();
+                clendarGMT.clear();
                 calendar.setTimeInMillis(millis);
-                tempCalGMT.set(calendar.get(Calendar.YEAR),
+                clendarGMT.set(calendar.get(Calendar.YEAR),
                                calendar.get(Calendar.MONTH),
                                calendar.get(Calendar.DAY_OF_MONTH),
                                calendar.get(Calendar.HOUR_OF_DAY),
                                calendar.get(Calendar.MINUTE),
                                calendar.get(Calendar.SECOND));
 
-                return tempCalGMT.getTimeInMillis();
+                return clendarGMT.getTimeInMillis();
             }
         }
     }
@@ -241,21 +246,7 @@ public class HsqlDateTime {
      * @param       millis                  the time value in milliseconds
      */
     public static void setTimeInMillis(Calendar cal, long millis) {
-
-//#ifdef JAVA4
-        // Use method directly
         cal.setTimeInMillis(millis);
-
-//#else
-/*
-        // Have to go indirect
-        synchronized (tempDate) {
-            tempDate.setTime(millis);
-            cal.setTime(tempDate);
-        }
-*/
-
-//#endif JAVA4
     }
 
     /**
@@ -266,18 +257,7 @@ public class HsqlDateTime {
      * @return      the time value in milliseconds
      */
     public static long getTimeInMillis(Calendar cal) {
-
-//#ifdef JAVA4
-        // Use method directly
         return cal.getTimeInMillis();
-
-//#else
-/*
-        // Have to go indirect
-        return cal.getTime().getTime();
-*/
-
-//#endif JAVA4
     }
 
     public static long convertToNormalisedTime(long t) {
@@ -293,16 +273,6 @@ public class HsqlDateTime {
             long t1 = getTimeInMillis(cal);
 
             return t - t1;
-        }
-    }
-
-    public static long convertToNormalisedDate(long t, Calendar cal) {
-
-        synchronized (cal) {
-            setTimeInMillis(cal, t);
-            resetToDate(cal);
-
-            return getTimeInMillis(cal);
         }
     }
 
@@ -338,10 +308,10 @@ public class HsqlDateTime {
         }
     }
 
-    public static long getNormalisedDate(Calendar cal, long d) {
+    public static long getNormalisedDate(Calendar cal, long t) {
 
         synchronized (cal) {
-            setTimeInMillis(cal, d);
+            setTimeInMillis(cal, t);
             resetToDate(cal);
 
             return getTimeInMillis(cal);
@@ -354,19 +324,7 @@ public class HsqlDateTime {
     }
 
     public static int getZoneMillis(Calendar cal, long millis) {
-
-//#ifdef JAVA4
-        // get zone for the specific date
         return cal.getTimeZone().getOffset(millis);
-
-//#else
-/*
-        // get zone for the specific date
-        setTimeInMillis(cal, millis);
-        return (cal.get(Calendar.ZONE_OFFSET) + cal.get(Calendar.DST_OFFSET) );
-*/
-
-//#endif JAVA4
     }
 
     /**
@@ -512,6 +470,7 @@ public class HsqlDateTime {
                 cal.set(Calendar.SECOND, 0);
             case Types.SQL_INTERVAL_SECOND :
                 cal.set(Calendar.MILLISECOND, 0);
+            default :
         }
     }
 
@@ -935,7 +894,7 @@ public class HsqlDateTime {
 
             for (int i = tokens.length; --i >= 0; ) {
                 if (isZeroBit(i)) {
-                    if (tokens[i][index] == ch) {
+                    if (tokens[i][index] == Character.toUpperCase(ch)) {
                         if (tokens[i].length == len) {
                             setBit(i);
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,7 @@
 package org.hsqldb.persist;
 
 import java.io.IOException;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.hsqldb.HsqlException;
 import org.hsqldb.Row;
@@ -55,8 +54,6 @@ import org.hsqldb.navigator.RowIterator;
 import org.hsqldb.rowio.RowInputInterface;
 import org.hsqldb.rowio.RowOutputInterface;
 
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-
 /*
  * Implementation of PersistentStore for CACHED tables.
  *
@@ -69,14 +66,10 @@ public class RowStoreAVLDisk extends RowStoreAVL implements PersistentStore {
     DataFileCache      cache;
     RowOutputInterface rowOut;
     boolean            largeData;
-    ReadWriteLock      lock;
-    Lock               readLock;
-    Lock               writeLock;
 
-    public RowStoreAVLDisk(PersistentStoreCollection manager,
-                           DataFileCache cache, Table table) {
+    public RowStoreAVLDisk(DataFileCache cache, Table table) {
 
-        this(manager, table);
+        this(table);
 
         this.cache = cache;
         rowOut     = cache.rowOut.duplicate();
@@ -90,10 +83,9 @@ public class RowStoreAVLDisk extends RowStoreAVL implements PersistentStore {
         writeLock  = lock.writeLock();
     }
 
-    protected RowStoreAVLDisk(PersistentStoreCollection manager, Table table) {
+    protected RowStoreAVLDisk(Table table) {
 
         this.database     = table.database;
-        this.manager      = manager;
         this.table        = table;
         this.indexList    = table.getIndexList();
         this.accessorList = new CachedObject[indexList.length];
@@ -102,10 +94,6 @@ public class RowStoreAVLDisk extends RowStoreAVL implements PersistentStore {
 
     public boolean isMemory() {
         return false;
-    }
-
-    public int getAccessCount() {
-        return cache.getAccessCount();
     }
 
     public void set(CachedObject object) {
@@ -155,7 +143,6 @@ public class RowStoreAVLDisk extends RowStoreAVL implements PersistentStore {
 
         storageSize += size;
     }
-
 
     public CachedObject get(RowInputInterface in) {
 

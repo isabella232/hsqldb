@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,6 @@
 
 package org.hsqldb.types;
 
-import org.hsqldb.HsqlNameManager;
 import org.hsqldb.HsqlNameManager.HsqlName;
 import org.hsqldb.SchemaObject;
 import org.hsqldb.Session;
@@ -503,14 +502,14 @@ public abstract class Type implements SchemaObject, Cloneable {
     }
 
     /**
-     * Common type used in comparison opertions. other must be comparable
+     * Common type used in comparison operations. other must be comparable
      * with this.
      */
     public abstract Type getAggregateType(Type other);
 
     /**
-     * Result type of combining values of two types in different opertions.
-     * other type is not allways comparable with this, but a operation should
+     * Result type of combining values of two types in different operations.
+     * other type is not always comparable with this, but a operation should
      * be valid without any explicit CAST
      */
     public abstract Type getCombinedType(Session session, Type other,
@@ -572,11 +571,7 @@ public abstract class Type implements SchemaObject, Cloneable {
         }
 
         if (other instanceof Type) {
-            if (((Type) other).typeCode == Types.SQL_ARRAY) {
-                return false;
-            }
-
-            if (((Type) other).typeCode == Types.SQL_ROW) {
+            if (getClass() != other.getClass()) {
                 return false;
             }
 
@@ -590,7 +585,7 @@ public abstract class Type implements SchemaObject, Cloneable {
     }
 
     public int hashCode() {
-        return typeCode + (int) precision << 8 + scale << 16;
+        return typeCode + ((int) precision << 8) + (scale << 16);
     }
 
     public static TypedComparator newComparator(Session session) {
@@ -665,6 +660,7 @@ public abstract class Type implements SchemaObject, Cloneable {
         new BinaryType(Types.SQL_VARBINARY, 32 * 1024);
     public static final BlobType SQL_BLOB =
         new BlobType(BlobType.defaultBlobSize);
+    public static final BinaryType BINARY_UUID = new BinaryUUIDType();
 
     // other type
     public static final OtherType OTHER = OtherType.getOtherType();
@@ -1082,6 +1078,9 @@ public abstract class Type implements SchemaObject, Cloneable {
             case Types.SQL_BLOB :
                 return BinaryType.getBinaryType(type, precision);
 
+            case Types.SQL_GUID :
+                return BINARY_UUID;
+
             case Types.SQL_BIT :
             case Types.SQL_BIT_VARYING :
                 return BitType.getBitType(type, precision);
@@ -1160,6 +1159,7 @@ public abstract class Type implements SchemaObject, Cloneable {
         typeNames.put(Tokens.T_BLOB, Types.SQL_BLOB);
         typeNames.put(Tokens.T_BIT, Types.SQL_BIT);
         typeNames.put(Tokens.T_OTHER, Types.OTHER);
+        typeNames.put(Tokens.T_UUID, Types.SQL_GUID);
 
         //
         typeAliases = new IntValueHashMap(64);
