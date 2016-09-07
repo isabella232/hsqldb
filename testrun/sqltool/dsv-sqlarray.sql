@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: dsv-sqlarray.sql 5406 2014-10-13 20:53:18Z unsaved $
  *
  * Tests a DSV "round trip".
  * Create a table, export the data, import it back, cf. imported  and original.

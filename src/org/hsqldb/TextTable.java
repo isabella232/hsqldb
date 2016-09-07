@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ import org.hsqldb.rowio.RowInputInterface;
  *
  * @author Bob Preston (sqlbob@users dot sourceforge.net)
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.4
  */
 public class TextTable extends Table {
 
@@ -110,25 +110,25 @@ public class TextTable extends Table {
         }
 
         try {
-            cache = (TextCache) database.logger.textTableManager.openTextFilePersistence(this,
-                    securePath, readOnly, isReversed);
+            cache =
+                (TextCache) database.logger.textTableManager
+                    .openTextFilePersistence(this, securePath, readOnly,
+                                             isReversed);
 
             store.setCache(cache);
 
             reader = cache.getTextFileReader();
 
             // read and insert all the rows from the source file
-            Row  row     = null;
-            long nextpos = 0;
+            Row row = null;
 
             if (cache.isIgnoreFirstLine()) {
-                nextpos += reader.readHeaderLine();
-
+                reader.readHeaderLine();
                 cache.setHeaderInitialise(reader.getHeaderLine());
             }
 
             while (true) {
-                RowInputInterface rowIn = reader.readObject(nextpos);
+                RowInputInterface rowIn = reader.readObject();
 
                 if (rowIn == null) {
                     break;
@@ -142,15 +142,13 @@ public class TextTable extends Table {
 
                 Object[] data = row.getData();
 
-                nextpos = (int) row.getPos() + row.getStorageSize();
-
                 systemUpdateIdentityValue(data);
                 enforceRowConstraints(session, data);
                 store.indexRow(session, row);
             }
         } catch (Throwable t) {
-            int linenumber = reader == null ? 0
-                                            : reader.getLineNumber();
+            long linenumber = reader == null ? 0
+                                             : reader.getLineNumber();
 
             clearAllData(session);
 
@@ -163,7 +161,7 @@ public class TextTable extends Table {
             // At this point table should either have a valid (old) data
             // source and cache or have an empty source and null cache.
             throw Error.error(t, ErrorCode.TEXT_FILE, 0, new Object[] {
-                new Integer(linenumber), t.toString()
+                Long.valueOf(linenumber), t.toString()
             });
         }
 
@@ -188,7 +186,7 @@ public class TextTable extends Table {
 
     /**
      * This method does some of the work involved with managing the creation
-     * and openning of the cache, the rest is done in Log.java and
+     * and opening of the cache, the rest is done in Log.java and
      * TextCache.java.
      *
      * Better clarification of the role of the methods is needed.
@@ -210,7 +208,7 @@ public class TextTable extends Table {
         isReversed = (isReversedNew && dataSource.length() > 0);
 
         try {
-            connect(session, isReadOnlyNew);
+            connect(session, isReadOnlyNew || isReversedNew);
         } catch (HsqlException e) {
             dataSource = dataSourceOld;
             isReversed = isReversedOld;

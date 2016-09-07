@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2014, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,7 +63,7 @@ public class StatementSchemaDefinition extends StatementSchema {
         try {
             result = getResult(session);
         } catch (Throwable t) {
-            result = Result.newErrorResult(t, null);
+            result = Result.newErrorResult(t);
         }
 
         if (result.isError()) {
@@ -100,7 +100,7 @@ public class StatementSchemaDefinition extends StatementSchema {
             } catch (HsqlException e) {}
 
             statements[i].setSchemaHsqlName(schemaDefinitionName);
-            session.parser.reset(statements[i].getSQL());
+            session.parser.reset(session, statements[i].getSQL());
 
             try {
                 session.parser.read();
@@ -190,9 +190,8 @@ public class StatementSchemaDefinition extends StatementSchema {
             try {
                 for (int i = 0; i < constraints.size(); i++) {
                     Constraint c = (Constraint) constraints.get(i);
-                    Table table =
-                        session.database.schemaManager.getUserTable(session,
-                            c.core.refTableName);
+                    Table table = session.database.schemaManager.getUserTable(
+                        c.core.refTableName);
 
                     ParserDDL.addForeignKey(session, table, c, null);
 

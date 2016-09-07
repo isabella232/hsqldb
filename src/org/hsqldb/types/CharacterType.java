@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2014, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,12 +54,12 @@ import org.hsqldb.lib.java.JavaSystem;
  */
 public class CharacterType extends Type {
 
-    static final int  defaultCharPrecision    = 256;
-    static final int  defaultVarcharPrecision = 32 * 1024;
+    static final int         defaultCharPrecision    = 256;
+    static final int         defaultVarcharPrecision = 32 * 1024;
     public static final long maxCharPrecision        = Integer.MAX_VALUE;
-    Collation         collation;
-    Charset           charset;
-    String            nameString;
+    Collation                collation;
+    Charset                  charset;
+    String                   nameString;
 
     public CharacterType(Collation collation, int type, long precision) {
 
@@ -416,7 +416,7 @@ public class CharacterType extends Type {
                 }
 
                 if (slen > precision) {
-                    if (getRightTrimSise((String) a, ' ') <= precision) {
+                    if (getRightTrimSize((String) a, ' ') <= precision) {
                         return ((String) a).substring(0, (int) precision);
                     } else {
                         throw Error.error(ErrorCode.X_22001);
@@ -437,7 +437,7 @@ public class CharacterType extends Type {
                 int slen = ((String) a).length();
 
                 if (slen > precision) {
-                    if (getRightTrimSise((String) a, ' ') <= precision) {
+                    if (getRightTrimSize((String) a, ' ') <= precision) {
                         return ((String) a).substring(0, (int) precision);
                     } else {
                         throw Error.error(ErrorCode.X_22001);
@@ -632,13 +632,14 @@ public class CharacterType extends Type {
         } else if (a instanceof String) {
             s = (String) a;
         } else if (a instanceof java.sql.Date) {
-            s = ((java.sql.Date) a).toString();
+            s = a.toString();
         } else if (a instanceof java.sql.Time) {
-            s = ((java.sql.Time) a).toString();
+            s = a.toString();
         } else if (a instanceof java.sql.Timestamp) {
-            s = ((java.sql.Timestamp) a).toString();
+            s = a.toString();
         } else if (a instanceof java.util.Date) {
-            s = HsqlDateTime.getTimestampString(((java.util.Date) a).getTime());
+            s = HsqlDateTime.getTimestampString(
+                ((java.util.Date) a).getTime());
         } else {
             throw Error.error(ErrorCode.X_42561);
         }
@@ -751,6 +752,13 @@ public class CharacterType extends Type {
         return charset;
     }
 
+    /**
+     * can add collation and charset equality
+     */
+    public boolean equals(Object other) {
+        return super.equals(other);
+    }
+
     public long position(SessionInterface session, Object data,
                          Object otherData, Type otherType, long offset) {
 
@@ -800,7 +808,6 @@ public class CharacterType extends Type {
 
             if (length > dataLength) {
                 offset = 0;
-                length = dataLength;
             } else {
                 offset = dataLength - length;
             }
@@ -1087,7 +1094,7 @@ public class CharacterType extends Type {
         return getCharacterType(this.typeCode, length, this.collation);
     }
 
-    public static int getRightTrimSise(String s, char trim) {
+    public static int getRightTrimSize(String s, char trim) {
 
         int endindex = s.length();
 

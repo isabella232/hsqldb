@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,7 @@ import org.hsqldb.types.Types;
  *
  * @author Bob Preston (sqlbob@users dot sourceforge.net)
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.5
  * @since 1.7.0
  */
 abstract class RowOutputBase extends HsqlByteArrayOutputStream
@@ -95,6 +95,8 @@ implements RowOutputInterface {
     public RowOutputBase(byte[] buffer) {
         super(buffer);
     }
+
+    public abstract long scalePosition(long position);
 
     public abstract void setStorageSize(int size);
 
@@ -143,6 +145,8 @@ implements RowOutputInterface {
     protected abstract void writeOther(JavaObjectData o);
 
     protected abstract void writeBit(BinaryData o);
+
+    protected abstract void writeUUID(BinaryData o);
 
     protected abstract void writeBinary(BinaryData o);
 
@@ -281,6 +285,10 @@ implements RowOutputInterface {
 
             case Types.SQL_ARRAY :
                 writeArray((Object[]) o, t);
+                break;
+
+            case Types.SQL_GUID :
+                writeUUID((BinaryData) o);
                 break;
 
             case Types.SQL_BINARY :

@@ -1,7 +1,7 @@
 #!/usr/bin/php5
 <?php
 
-# $Id$
+# $Id: sample.php 3633 2010-06-06 23:56:41Z unsaved $
 
 # Sample PHP script accessing HyperSQL through the ODBC extension module.
 # (Therefore, you need to have the PHP ODBC module installed).

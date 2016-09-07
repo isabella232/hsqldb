@@ -83,7 +83,7 @@ import org.hsqldb.cmdline.sqltool.SqlFileScanner;
 import org.hsqldb.cmdline.sqltool.Calculator;
 import org.hsqldb.cmdline.sqltool.FileRecordReader;
 
-/* $Id$ */
+/* $Id: SqlFile.java 5448 2015-03-24 00:32:35Z fredt $ */
 
 /**
  * Encapsulation of SQL text and the environment under which it will executed
@@ -148,7 +148,7 @@ import org.hsqldb.cmdline.sqltool.FileRecordReader;
  *     The SqlTool chapter of the
  *     HyperSQL Utilities Guide</a>
  * @see org.hsqldb.sample.SqlFileEmbedder
- * @version $Revision$, $Date$
+ * @version $Revision: 5448 $, $Date: 2015-03-24 00:32:35 +0000 (Tue, 24 Mar 2015) $
  * @author Blaine Simpson (blaine dot simpson at admc dot com)
  */
 
@@ -447,7 +447,7 @@ public class SqlFile {
         "-----------------------------------------------------------------"
         + "-----------------------------------------------------------------";
     // Needs to be at least as wide as the widest field or header displayed.
-    private static final String revString = "$Revision$";
+    private static final String revString = "$Revision: 5448 $";
     private static final int revStringLength = revString.length();
     private static final String  revnum =
             (revStringLength - " $".length() > "$Revision: ".length())

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,12 +68,9 @@ import org.hsqldb.scriptio.ScriptWriterText;
  *  the contents of these files into its database file. The script format is
  *  always TEXT in this case.
  *
- *  Class has the same name as a class in Hypersonic SQL, but has been
- *  completely rewritten since HSQLDB 1.8.0 and earlier.
- *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
  * @author Bob Preston (sqlbob@users dot sourceforge.net) - text table support
- * @version 2.3.3
+ * @version 2.3.4
  * @since 1.8.0
  */
 public class Log {
@@ -164,7 +161,7 @@ public class Log {
             // delete log file as zero length file is possible
             // fall through
             case HsqlDatabaseProperties.FILES_NOT_MODIFIED :
-                fa.removeElement(logFileName);
+                deleteLog();
                 database.logger.logInfoEvent(
                     "open start - state not modified");
 
@@ -360,9 +357,7 @@ public class Log {
         boolean result       = checkpointClose();
         boolean reopenResult = checkpointReopen();
 
-        if (result) {
-            database.lobManager.deleteUnusedLobs();
-        } else {
+        if (!result) {
             database.logger.logSevereEvent(
                 "checkpoint failed - see previous error", null);
         }
@@ -374,7 +369,7 @@ public class Log {
      * Performs checkpoint including pre and post operations. Returns to the
      * same state as before the checkpoint.
      */
-    void checkpoint(boolean defrag) {
+    void checkpoint(Session session, boolean defrag) {
 
         if (filesReadOnly) {
             return;
@@ -387,7 +382,7 @@ public class Log {
         }
 
         if (defrag) {
-            defrag();
+            defrag(session);
         } else {
             checkpoint();
         }
@@ -476,7 +471,7 @@ public class Log {
     /**
      *  Writes out all the rows to a new file without fragmentation.
      */
-    public void defrag() {
+    public void defrag(Session session) {
 
         database.logger.logInfoEvent("defrag start");
 
@@ -492,7 +487,7 @@ public class Log {
             database.lobManager.synch();
             deleteOldDataFiles();
 
-            DataFileDefrag dfd = cache.defrag();
+            DataFileDefrag dfd = cache.defrag(session);
 
             database.persistentStoreCollection.setNewTableSpaces();
             database.schemaManager.setIndexRoots(dfd.getIndexRoots());
@@ -515,7 +510,7 @@ public class Log {
     }
 
     /**
-     * Returns true if lost space is above the threshold percentage
+     * Returns true if lost space is above the threshold percentage.
      */
     boolean forceDefrag() {
 
@@ -597,7 +592,7 @@ public class Log {
         try {
             dbLogWriter.writeOtherStatement(session, s);
         } catch (IOException e) {
-            throw Error.error(ErrorCode.FILE_IO_ERROR, logFileName);
+            throw Error.error(ErrorCode.FILE_IO_ERROR, getLogFileName());
         }
 
         if (maxLogSize > 0 && dbLogWriter.size() > maxLogSize) {
@@ -612,7 +607,7 @@ public class Log {
         try {
             dbLogWriter.writeInsertStatement(session, row, t);
         } catch (IOException e) {
-            throw Error.error(ErrorCode.FILE_IO_ERROR, logFileName);
+            throw Error.error(ErrorCode.FILE_IO_ERROR, getLogFileName());
         }
     }
 
@@ -621,7 +616,7 @@ public class Log {
         try {
             dbLogWriter.writeDeleteStatement(session, t, row);
         } catch (IOException e) {
-            throw Error.error(ErrorCode.FILE_IO_ERROR, logFileName);
+            throw Error.error(ErrorCode.FILE_IO_ERROR, getLogFileName());
         }
     }
 
@@ -630,7 +625,7 @@ public class Log {
         try {
             dbLogWriter.writeSequenceStatement(session, s);
         } catch (IOException e) {
-            throw Error.error(ErrorCode.FILE_IO_ERROR, logFileName);
+            throw Error.error(ErrorCode.FILE_IO_ERROR, getLogFileName());
         }
 
         setModified();
@@ -641,7 +636,7 @@ public class Log {
         try {
             dbLogWriter.writeCommitStatement(session);
         } catch (IOException e) {
-            throw Error.error(ErrorCode.FILE_IO_ERROR, logFileName);
+            throw Error.error(ErrorCode.FILE_IO_ERROR, getLogFileName());
         }
 
         if (maxLogSize > 0 && dbLogWriter.size() > maxLogSize) {
@@ -669,7 +664,7 @@ public class Log {
     }
 
     /**
-     * Wrappers for openning-starting / stoping-closing the log file and
+     * Wrappers for opening-starting / stopping-closing the log file and
      * writer.
      */
     void openLog() {
@@ -793,7 +788,10 @@ public class Log {
     private void processLog() {
 
         if (fa.isStreamElement(logFileName)) {
-            ScriptRunner.runScript(database, logFileName);
+            boolean fullReplay = database.getURLProperties().isPropertyTrue(
+                HsqlDatabaseProperties.hsqldb_full_log_replay);
+
+            ScriptRunner.runScript(database, logFileName, fullReplay);
         }
     }
 

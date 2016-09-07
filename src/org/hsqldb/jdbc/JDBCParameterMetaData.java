@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,12 +42,12 @@ import org.hsqldb.types.DateTimeType;
 import org.hsqldb.types.IntervalType;
 import org.hsqldb.types.Type;
 
-/* $Id$ */
+/* $Id: JDBCParameterMetaData.java 5561 2016-03-18 18:39:11Z fredt $ */
 
 /** @todo 1.9.0 - implement internal support for INOUT, OUT return parameter */
 
 // fredt@users 20040412 - removed DITypeInfo dependencies
-// fredt@usres 1.9.0 - utilise the new type support
+// fredt@users 1.9.0 - utilise the new type support
 // boucherb@users 20051207 - patch 1.8.0.x initial JDBC 4.0 support work
 // boucherb@users 20060522 - doc   1.9.0 full synch up to Mustang Build 84
 // Revision 1.14  2006/07/12 12:20:49  boucherb
@@ -67,7 +67,7 @@ import org.hsqldb.types.Type;
  * object.
  *
  * @author Campbell Burnet (boucherb@users dot sourceforge.net)
- * @version 2.0.1
+ * @version 2.3.4
  * @since JDK 1.4, HSQLDB 1.7.2
  * @revised JDK 1.6, HSQLDB 2.0
  */
@@ -320,20 +320,6 @@ public class JDBCParameterMetaData
     /** The metadata object with which this object is constructed */
     ResultMetaData rmd;
 
-    /**
-     * The fully-qualified name of the Java class whose instances should
-     * be passed to the method PreparedStatement.setObject. <p>
-     *
-     * Note that changes to Function.java and Types.java allow passing
-     * objects of any class implementing java.io.Serializable and that,
-     * as such, the parameter expression resolution mechanism has been
-     * upgraded to provide the precise FQN for SQL function and stored
-     * procedure arguments, rather than the more generic
-     * org.hsqldb.JavaObject class that is used internally to represent
-     * and transport objects whose class is not in the standard mapping.
-     */
-    String[] classNames;
-
     /** The number of parameters in the described statement */
     int             parameterCount;
     private boolean translateTTIType;
@@ -347,13 +333,9 @@ public class JDBCParameterMetaData
     JDBCParameterMetaData(JDBCConnection conn,
                           ResultMetaData metaData) throws SQLException {
 
-        rmd            = metaData;
-        parameterCount = rmd.getColumnCount();
-
-        if (conn.clientProperties != null) {
-            translateTTIType = conn.clientProperties.isPropertyTrue(
-                HsqlDatabaseProperties.jdbc_translate_tti_types);
-        }
+        rmd              = metaData;
+        parameterCount   = rmd.getColumnCount();
+        translateTTIType = conn.isTranslateTTIType;
     }
 
     /**
@@ -392,9 +374,9 @@ public class JDBCParameterMetaData
     }
 
     /**
-     * Retrieves a String repsentation of this object. <p>
+     * Retrieves a String representation of this object. <p>
      *
-     * @return a String repsentation of this object
+     * @return a String representation of this object
      */
     public String toString() {
 
@@ -455,7 +437,7 @@ public class JDBCParameterMetaData
                 sb.append(method.getName());
                 sb.append('=');
                 sb.append(method.invoke(this,
-                                        new Object[] { new Integer(i + 1) }));
+                                        new Object[] { Integer.valueOf(i + 1) }));
 
                 if (j + 1 < len) {
                     sb.append(',');

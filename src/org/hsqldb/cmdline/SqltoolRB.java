@@ -34,7 +34,7 @@ package org.hsqldb.cmdline;
 import org.hsqldb.lib.ValidatingResourceBundle;
 import org.hsqldb.lib.RefCapableRBInterface;
 
-/* $Id$ */
+/* $Id: SqltoolRB.java 4809 2011-11-20 21:12:35Z unsaved $ */
 
 /**
  * Resource Bundle for SqlTool and associated classes.

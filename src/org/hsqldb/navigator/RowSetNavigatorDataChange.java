@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,22 +42,16 @@ import org.hsqldb.types.Type;
 
 /*
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.5
  * @since 2.2.7
  */
 public interface RowSetNavigatorDataChange extends RangeIterator {
-
-    void release();
 
     int getSize();
 
     int getRowPosition();
 
-    boolean next();
-
     boolean beforeFirst();
-
-    Row getCurrentRow();
 
     Object[] getCurrentChangedData();
 
@@ -74,9 +68,11 @@ public interface RowSetNavigatorDataChange extends RangeIterator {
     Object[] addRow(Session session, Row row, Object[] data, Type[] types,
                     int[] columnMap);
 
-    public boolean addUpdate(Row row, Object[] data, int[] columnMap);
+    boolean addUpdate(Row row, Object[] data, int[] columnMap);
 
     boolean containsDeletedRow(Row row);
 
     boolean containsUpdatedRow(Row row, Row refRow, int[] keys);
+
+    RangeIterator getUpdateRowIterator();
 }

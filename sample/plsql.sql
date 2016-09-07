@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: plsql.sql 610 2008-12-22 15:54:18Z unsaved $
  *
  * This example is copied from the "Simple Programs in PL/SQL"
  * example by Yu-May Chang, Jeff Ullman, Prof. Jennifer Widom at

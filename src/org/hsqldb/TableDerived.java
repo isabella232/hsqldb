@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ import org.hsqldb.types.Type;
  * Table with data derived from a query expression.
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.0
+ * @version 2.3.5
  * @since 1.9.0
  */
 public class TableDerived extends Table {
@@ -137,6 +137,12 @@ public class TableDerived extends Table {
 
                 uniquePredicate = true;
                 break;
+
+            case OpTypes.MATCH_SIMPLE :
+                queryExpression.setFullOrder();
+                break;
+
+            default :
         }
 
         if (dataExpression != null) {
@@ -152,14 +158,15 @@ public class TableDerived extends Table {
             ParserDQL p = new ParserDQL(session, new Scanner(),
                                         session.parser.compileContext);
 
-            p.reset(sql);
+            p.reset(session, sql);
             p.read();
-
             p.compileContext.setCurrentSubquery(tableName.name);
 
             td = p.XreadSubqueryTableBody(tableName, OpTypes.TABLE_SUBQUERY);
 
-            td.queryExpression.resolve(session);
+            td.queryExpression.resolve(session,
+                                       p.compileContext.getOuterRanges(),
+                                       null);
 
             td.columnList   = columnList;
             td.columnCount  = columnList.size();
@@ -303,22 +310,29 @@ public class TableDerived extends Table {
 
     private void setTableIndexesForSubquery(Session session) {
 
-        int[] cols = null;
+        int[]   cols         = null;
+        boolean hasFullIndex = false;
 
-        if (uniqueRows || uniquePredicate) {
+        if (queryExpression != null) {
+            if (queryExpression.fullIndex != null) {
+                hasFullIndex = true;
+            }
+        }
+
+        if (hasFullIndex || uniqueRows || uniquePredicate) {
             cols = new int[getColumnCount()];
 
             ArrayUtil.fillSequence(cols);
         }
 
-        int pkcols[] = uniqueRows ? cols
+        int[] pkcols = uniqueRows ? cols
                                   : null;
 
         createPrimaryKey(null, pkcols, false);
 
         if (uniqueRows) {
             fullIndex = getPrimaryIndex();
-        } else if (uniquePredicate) {
+        } else if (uniquePredicate || hasFullIndex) {
             fullIndex = createIndexForColumns(session, cols);
         }
     }
@@ -421,10 +435,10 @@ public class TableDerived extends Table {
 
         RowIterator it = rowIterator(session);
 
-        if (it.hasNext()) {
-            Row row = it.getNextRow();
+        if (it.next()) {
+            Row row = it.getCurrentRow();
 
-            if (it.hasNext()) {
+            if (it.next()) {
                 throw Error.error(ErrorCode.X_21000);
             }
 

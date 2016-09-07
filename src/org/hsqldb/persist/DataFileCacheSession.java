@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,6 @@
 package org.hsqldb.persist;
 
 import org.hsqldb.Database;
-import org.hsqldb.Row;
 import org.hsqldb.error.Error;
 import org.hsqldb.error.ErrorCode;
 import org.hsqldb.lib.FileUtil;
@@ -42,7 +41,7 @@ import org.hsqldb.lib.Iterator;
  * A file-based row store for temporary CACHED table persistence.<p>
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.4
  * @since 1.9.0
  */
 public class DataFileCacheSession extends DataFileCache {
@@ -67,7 +66,7 @@ public class DataFileCacheSession extends DataFileCache {
         cachedRowPadding  = dataFileScale;
         initialFreePos    = dataFileScale;
         maxCacheRows      = 2048;
-        maxCacheBytes     = maxCacheRows * 1024;
+        maxCacheBytes     = maxCacheRows * 1024L;
         maxDataFileSize   = (long) Integer.MAX_VALUE * dataFileScale;
     }
 
@@ -83,7 +82,7 @@ public class DataFileCacheSession extends DataFileCache {
 
             initBuffers();
 
-            spaceManager = new DataSpaceManagerSimple(this);
+            spaceManager = new DataSpaceManagerSimple(this, false);
         } catch (Throwable t) {
             database.logger.logWarningEvent("Failed to open Session RA file",
                                             t);

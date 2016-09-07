@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2014, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@ import java.math.BigDecimal;
   * Java Objects. Leads to reduction in memory use when an Object is used more
   * then twice in the database.
   *
-  * getXXX methods are used for retrival of values. If a value is not in
+  * getXXX methods are used for retrieval of values. If a value is not in
   * the pool, it is added to the pool and returned. When the pool gets
   * full, half the contents that have been accessed less recently are purged.
   *
@@ -93,9 +93,9 @@ public class ValuePool {
     public static final Integer INTEGER_MAX =
         ValuePool.getInt(Integer.MAX_VALUE);
     public static final BigDecimal BIG_DECIMAL_0 =
-        ValuePool.getBigDecimal(new BigDecimal(0.0));
+        ValuePool.getBigDecimal(BigDecimal.valueOf(0));
     public static final BigDecimal BIG_DECIMAL_1 =
-        ValuePool.getBigDecimal(new BigDecimal(1.0));
+        ValuePool.getBigDecimal(new BigDecimal(1));
 
     //
     public static final String[] emptyStringArray = new String[]{};

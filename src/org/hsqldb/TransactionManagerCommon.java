@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@ import org.hsqldb.lib.OrderedHashSet;
  * Shared code for TransactionManager classes
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.4
  * @since 2.0.0
  */
 class TransactionManagerCommon {
@@ -137,8 +137,6 @@ class TransactionManagerCommon {
 
             manager.transactionCount = transactionCount;
             database.txManager       = (TransactionManager) manager;
-
-            return;
         } finally {
             writeLock.unlock();
         }
@@ -308,6 +306,40 @@ class TransactionManagerCommon {
         return true;
     }
 
+    void getTransactionSessions(Session session) {
+
+        OrderedHashSet set      = session.tempSet;
+        Session[]      sessions = database.sessionManager.getAllSessions();
+
+        for (int i = 0; i < sessions.length; i++) {
+            long timestamp = sessions[i].transactionTimestamp;
+
+            if (session != sessions[i] && sessions[i].isTransaction) {
+                set.add(sessions[i]);
+            }
+        }
+    }
+
+    void getTransactionAndPreSessions(Session session) {
+
+        OrderedHashSet set      = session.tempSet;
+        Session[]      sessions = database.sessionManager.getAllSessions();
+
+        for (int i = 0; i < sessions.length; i++) {
+            long timestamp = sessions[i].transactionTimestamp;
+
+            if (session == sessions[i]) {
+                continue;
+            }
+
+            if (sessions[i].isPreTransaction) {
+                set.add(sessions[i]);
+            } else if (sessions[i].isTransaction) {
+                set.add(sessions[i]);
+            }
+        }
+    }
+
     void endActionTPL(Session session) {
 
         if (session.isolationLevel == SessionInterface.TX_REPEATABLE_READ
@@ -463,20 +495,27 @@ class TransactionManagerCommon {
         final int waitingCount = session.waitingSessions.size();
 
         for (int i = 0; i < waitingCount; i++) {
-            Session current = (Session) session.waitingSessions.get(i);
+            Session current  = (Session) session.waitingSessions.get(i);
+            boolean testCode = false;
 
-/*
-            if (!current.abortTransaction && current.tempSet.isEmpty()) {
+            if (testCode) {
+                if (!current.abortTransaction && current.tempSet.isEmpty()) {
 
+                    // test code valid only for top level statements
+                    boolean hasLocks =
+                        hasLocks(current,
+                                 current.sessionContext.currentStatement);
 
-                // test code valid only for top level statements
-                boolean hasLocks = hasLocks(current, current.sessionContext.currentStatement);
-                if (!hasLocks) {
-                    System.out.println("trouble");
+                    if (!hasLocks) {
+                        System.out.println("tx graph");
+
+                        hasLocks =
+                            hasLocks(current,
+                                     current.sessionContext.currentStatement);
+                    }
                 }
-
             }
-*/
+
             setWaitingSessionTPL(current);
         }
 
@@ -493,16 +532,25 @@ class TransactionManagerCommon {
         final int waitingCount = session.tempSet.size();
 
         for (int i = 0; i < waitingCount; i++) {
-            Session current = (Session) session.tempSet.get(i);
+            Session current  = (Session) session.tempSet.get(i);
+            boolean testCode = false;
 
-            if (!current.abortTransaction && current.tempSet.isEmpty()) {
+            if (testCode) {
+                if (!current.abortTransaction && current.tempSet.isEmpty()) {
 
-                // valid for top level statements
-//                boolean hasLocks = hasLocks(current, current.sessionContext.currentStatement);
-//                if (!hasLocks) {
-//                    System.out.println("trouble");
-//                    hasLocks(current, current.sessionContext.currentStatement);
-//                }
+                    // test code valid for top level statements
+                    boolean hasLocks =
+                        hasLocks(current,
+                                 current.sessionContext.currentStatement);
+
+                    if (!hasLocks) {
+                        System.out.println("tx graph");
+
+                        hasLocks =
+                            hasLocks(current,
+                                     current.sessionContext.currentStatement);
+                    }
+                }
             }
 
             setWaitingSessionTPL(current);
@@ -521,6 +569,10 @@ class TransactionManagerCommon {
 
         if (session.abortTransaction) {
             return false;
+        }
+
+        if (cs.isCatalogLock()) {
+            getTransactionSessions(session);
         }
 
         HsqlName[] nameList = cs.getTableNamesForWrite();
@@ -552,7 +604,9 @@ class TransactionManagerCommon {
         nameList = cs.getTableNamesForRead();
 
         if (txModel == TransactionManager.MVLOCKS && session.isReadOnly()) {
-            nameList = catalogNameList;
+            if (nameList.length > 0) {
+                nameList = catalogNameList;
+            }
         }
 
         for (int i = 0; i < nameList.length; i++) {
@@ -619,6 +673,12 @@ class TransactionManagerCommon {
         }
 
         nameList = cs.getTableNamesForRead();
+
+        if (txModel == TransactionManager.MVLOCKS && session.isReadOnly()) {
+            if (nameList.length > 0) {
+                nameList = catalogNameList;
+            }
+        }
 
         for (int i = 0; i < nameList.length; i++) {
             HsqlName name = nameList[i];
@@ -801,10 +861,6 @@ class TransactionManagerCommon {
 
     void resetSession(Session session, Session targetSession, int mode) {
 
-        if (session == targetSession) {
-            return;
-        }
-
         writeLock.lock();
 
         try {
@@ -830,7 +886,13 @@ class TransactionManagerCommon {
                     break;
 
                 case TransactionManager.resetSessionRollback :
+                    if (session == targetSession) {
+                        return;
+                    }
+
                     if (targetSession.isInMidTransaction()) {
+                        prepareReset(targetSession);
+
                         if (targetSession.latch.getCount() > 0) {
                             targetSession.abortTransaction = true;
 
@@ -841,7 +903,29 @@ class TransactionManagerCommon {
                     }
                     break;
 
+                case TransactionManager.resetSessionAbort :
+                    if (session == targetSession) {
+                        return;
+                    }
+
+                    if (targetSession.isInMidTransaction()) {
+                        prepareReset(targetSession);
+
+                        if (targetSession.latch.getCount() > 0) {
+                            targetSession.abortAction = true;
+
+                            targetSession.latch.setCount(0);
+                        } else {
+                            targetSession.abortAction = true;
+                        }
+                    }
+                    break;
+
                 case TransactionManager.resetSessionClose :
+                    if (session == targetSession) {
+                        return;
+                    }
+
                     if (!targetSession.isInMidTransaction()) {
                         targetSession.rollbackNoCheck(true);
                         targetSession.close();
@@ -852,4 +936,19 @@ class TransactionManagerCommon {
             writeLock.unlock();
         }
     }
+
+    void prepareReset(Session session) {
+
+        OrderedHashSet waitedSessions = session.waitedSessions;
+
+        for (int i = 0; i < waitedSessions.size(); i++) {
+            Session current = (Session) waitedSessions.get(i);
+
+            current.waitingSessions.remove(session);
+        }
+
+        waitedSessions.clear();
+    }
+
+    public void abortAction(Session session) {}
 }

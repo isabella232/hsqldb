@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: sample.sql 3605 2010-06-01 02:21:36Z unsaved $
     Exemplifies use of SqlTool.
     PCTASK Table creation
 */

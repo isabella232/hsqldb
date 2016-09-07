@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2014, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,8 @@ import org.hsqldb.error.ErrorCode;
 import org.hsqldb.lib.StringConverter;
 import org.hsqldb.rights.Grantee;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * Provides Name Management for SQL objects. <p>
  *
@@ -67,7 +69,7 @@ public final class HsqlNameManager {
     private static final HsqlNameManager staticManager = new HsqlNameManager();
 
     static {
-        staticManager.serialNumber = Integer.MIN_VALUE;
+        staticManager.serialNumber.set(Integer.MIN_VALUE);
     }
 
     private static final HsqlName[] autoColumnNames       = new HsqlName[32];
@@ -81,8 +83,8 @@ public final class HsqlNameManager {
         }
     }
 
-    private int      serialNumber = 1;        // 0 is reserved in lookups
-    private int      sysNumber    = 10000;    // avoid name clash in older scripts
+    private AtomicInteger serialNumber = new AtomicInteger(1);    // 0 is reserved in lookups
+    private int      sysNumber = 10000;                           // avoid name clash in older scripts
     private HsqlName catalogName;
     private boolean  sqlRegularNames;
     HsqlName         subqueryTableName;
@@ -231,11 +233,6 @@ public final class HsqlNameManager {
         return hsqlName;
     }
 
-    public static HsqlName getColumnName(SimpleName name) {
-        return new HsqlName(staticManager, name.name, name.isNameQuoted,
-                            SchemaObject.COLUMN);
-    }
-
     /**
      * Column index i is 0 based, returns 1 based numbered column.
      */
@@ -247,18 +244,6 @@ public final class HsqlNameManager {
 
         return new HsqlName(staticManager, "C_" + (i + 1),
                             SchemaObject.COLUMN, false);
-    }
-
-    /**
-     * Column index i is 0 based, returns 1 based numbered column.
-     */
-    public static String getAutoColumnNameString(int i) {
-
-        if (i < autoColumnNames.length) {
-            return autoColumnNames[i].name;
-        }
-
-        return "C" + (i + 1);
     }
 
     public static String getAutoNoNameColumnString(int i) {
@@ -324,7 +309,7 @@ public final class HsqlNameManager {
         private SimpleName() {}
 
         private SimpleName(String name, boolean isNameQuoted) {
-            this.name         = new String(name);
+            this.name         = name;
             this.isNameQuoted = isNameQuoted;
         }
 
@@ -359,20 +344,22 @@ public final class HsqlNameManager {
         static HsqlName[] emptyArray = new HsqlName[]{};
 
         //
-        HsqlNameManager   manager;
-        public String     statementName;
-        public String     comment;
-        public HsqlName   schema;
-        public HsqlName   parent;
-        public Grantee    owner;
-        public final int  type;
+        HsqlNameManager  manager;
+        public String    statementName;
+        public String    comment;
+        public HsqlName  schema;
+        public HsqlName  parent;
+        public Grantee   owner;
+        public final int type;
+
+        //
         private final int hashCode;
 
         private HsqlName(HsqlNameManager man, int type) {
 
             manager   = man;
             this.type = type;
-            hashCode  = manager.serialNumber++;
+            hashCode  = manager.serialNumber.getAndIncrement();
         }
 
         private HsqlName(HsqlNameManager man, String name, boolean isquoted,
@@ -458,7 +445,7 @@ public final class HsqlNameManager {
             }
 
             // get rid of the excess
-            this.name          = new String(name);
+            this.name          = name;
             this.statementName = this.name;
             this.isNameQuoted  = isquoted;
 

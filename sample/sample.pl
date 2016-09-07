@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id$
+# $Id: sample.pl 3633 2010-06-06 23:56:41Z unsaved $
 
 # Sample Perl script accessing HyperSQL through the Perl DBI and DBD/ODBC
 # modules.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -162,11 +162,11 @@ public class RowAction extends RowActionBase {
                     case ACTION_DELETE : {
                         if (session != action.session) {
                             if (action.commitTimestamp == 0) {
-                                if (!session.tempSet.isEmpty()) {
-                                    session.tempSet.clear();
+                                if (!session.actionSet.isEmpty()) {
+                                    session.actionSet.clear();
                                 }
 
-                                session.tempSet.add(action);
+                                session.actionSet.add(action);
                             }
 
                             return null;
@@ -180,11 +180,11 @@ public class RowAction extends RowActionBase {
                             if (colMap == null
                                     || ArrayUtil.haveCommonElement(
                                         colMap, action.changeColumnMap)) {
-                                if (!session.tempSet.isEmpty()) {
-                                    session.tempSet.clear();
+                                if (!session.actionSet.isEmpty()) {
+                                    session.actionSet.clear();
                                 }
 
-                                session.tempSet.add(action);
+                                session.actionSet.add(action);
 
                                 return null;
                             }
@@ -242,11 +242,11 @@ public class RowAction extends RowActionBase {
                     if (action.changeColumnMap == null
                             || ArrayUtil.haveCommonElement(
                                 colMap, action.changeColumnMap)) {
-                        if (!session.tempSet.isEmpty()) {
-                            session.tempSet.clear();
+                        if (!session.actionSet.isEmpty()) {
+                            session.actionSet.clear();
                         }
 
-                        session.tempSet.add(action);
+                        session.actionSet.add(action);
 
                         return false;
                     }
@@ -798,12 +798,12 @@ public class RowAction extends RowActionBase {
                     throw Error.runtimeError(ErrorCode.U_S0500, "RowAction");
                 } else if (action.type == ACTION_INSERT) {
                     if (mode == TransactionManager.ACTION_READ) {
-                        actionType = action.ACTION_DELETE;
+                        actionType = ACTION_DELETE;
                     } else if (mode == TransactionManager.ACTION_DUP) {
                         actionType = ACTION_INSERT;
 
-                        session.tempSet.clear();
-                        session.tempSet.add(action);
+                        session.actionSet.clear();
+                        session.actionSet.add(action);
                     } else if (mode == TransactionManager.ACTION_REF) {
                         actionType = ACTION_DELETE;
                     }
@@ -830,12 +830,12 @@ public class RowAction extends RowActionBase {
             } else {
                 if (action.type == ACTION_INSERT) {
                     if (mode == TransactionManager.ACTION_READ) {
-                        actionType = action.ACTION_DELETE;
+                        actionType = ACTION_DELETE;
                     } else if (mode == TransactionManager.ACTION_DUP) {
                         actionType = ACTION_INSERT;
 
-                        session.tempSet.clear();
-                        session.tempSet.add(action);
+                        session.actionSet.clear();
+                        session.actionSet.add(action);
                     } else if (mode == TransactionManager.ACTION_REF) {
                         actionType = ACTION_DELETE;
                     }

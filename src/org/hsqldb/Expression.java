@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,7 @@ import org.hsqldb.types.Types;
  *
  * @author Campbell Burnet (boucherb@users dot sourceforge.net)
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.5
  * @since 1.9.0
  */
 public class Expression implements Cloneable {
@@ -171,6 +171,7 @@ public class Expression implements Cloneable {
 
     // aggregate
     private boolean isAggregate;
+    boolean         isDistinctAggregate;
 
     // VALUE
     protected Object       valueData;
@@ -553,7 +554,7 @@ public class Expression implements Cloneable {
     /**
      * For GROUP only.
      */
-    boolean isComposedOf(Expression exprList[], int start, int end,
+    boolean isComposedOf(Expression[] exprList, int start, int end,
                          OrderedIntHashSet excludeSet) {
 
         switch (opType) {
@@ -828,6 +829,10 @@ public class Expression implements Cloneable {
         return isAggregate;
     }
 
+    boolean isDistinctAggregate() {
+        return isDistinctAggregate;
+    }
+
     void setAggregate() {
         isAggregate = true;
     }
@@ -890,6 +895,10 @@ public class Expression implements Cloneable {
         nodes[RIGHT] = e;
     }
 
+    int getSubType() {
+        return exprSubType;
+    }
+
     void setSubType(int subType) {
         exprSubType = subType;
     }
@@ -907,7 +916,7 @@ public class Expression implements Cloneable {
     Expression replaceAliasInOrderBy(Session session, Expression[] columns,
                                      int length) {
 
-        if (this.isSelfAggregate()) {
+        if (isSelfAggregate()) {
             return this;
         }
 
@@ -1185,6 +1194,8 @@ public class Expression implements Cloneable {
                     unresolvedSet.add(this);
                 }
                 break;
+
+            default :
         }
 
         return unresolvedSet;
@@ -1567,7 +1578,7 @@ public class Expression implements Cloneable {
             case OpTypes.SIMPLE_COLUMN : {
                 Object value =
                     session.sessionContext.rangeIterators[rangePosition]
-                        .getCurrent(columnIndex);
+                        .getField(columnIndex);
 
                 return value;
             }
@@ -1602,8 +1613,8 @@ public class Expression implements Cloneable {
 
                 nav.beforeFirst();
 
-                for (int i = 0; nav.hasNext(); i++) {
-                    Object[] data = nav.getNextRowData();
+                for (int i = 0; nav.next(); i++) {
+                    Object[] data = nav.getCurrent();
 
                     array[i] = data[0];
                 }
@@ -1617,7 +1628,7 @@ public class Expression implements Cloneable {
                 Object[] value = table.getValues(session);
 
                 if (value.length == 1) {
-                    return ((Object[]) value)[0];
+                    return value[0];
                 }
 
                 return value;
@@ -1637,8 +1648,8 @@ public class Expression implements Cloneable {
 
                 navigator.beforeFirst();
 
-                for (int i = 0; navigator.hasNext(); i++) {
-                    Object[] data = navigator.getNext();
+                for (int i = 0; navigator.next(); i++) {
+                    Object[] data = navigator.getCurrent();
 
                     array[i] = data[0];
                 }

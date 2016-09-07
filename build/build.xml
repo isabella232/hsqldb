@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<!-- $Id$ -->
+<!-- $Id: build.xml 5541 2016-02-18 15:26:36Z fredt $ -->
 <!-- author fredt@users.sourceforge.net 2001 - 2010 -->
 <!-- additional targets 2004-2010: blaine (dot) simpson (at) admc (dot) com -->
 <project name="hsqldb" default="help" basedir="../">
@@ -26,7 +26,7 @@
   -->
 
    <property file='build/build.properties'/>
-   <property name="hsqldb.version" value="2.3.3"/>
+   <property name="hsqldb.version" value="2.3.4"/>
 
    <tstamp>
        <format property="timestamp" pattern="yyyy/MM/dd-HH:mm:ss"

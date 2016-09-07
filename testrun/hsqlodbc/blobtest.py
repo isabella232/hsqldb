@@ -1,6 +1,6 @@
 #!/usr/bin/python -t
 
-# $Id$
+# $Id: blobtest.py 2895 2009-03-07 19:34:26Z unsaved $
 
 # Test BLOB transactions through the ODBC driver.
 # Can't perform these tests with our Java unit tests, since Sun's jdbc:odbc

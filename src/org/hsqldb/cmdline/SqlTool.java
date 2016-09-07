@@ -45,7 +45,7 @@ import org.hsqldb.lib.FrameworkLogger;
 import org.hsqldb.lib.RCData;
 import org.hsqldb.cmdline.sqltool.Token;
 
-/* $Id$ */
+/* $Id: SqlTool.java 5337 2014-01-24 19:26:47Z fredt $ */
 
 /**
  * A command-line JDBC SQL tool supporting both interactive and
@@ -69,7 +69,7 @@ import org.hsqldb.cmdline.sqltool.Token;
  * @see #objectMain(String[])
  * @see SqlFile
  * @see org.hsqldb.sample.SqlFileEmbedder
- * @version $Revision$, $Date$
+ * @version $Revision: 5337 $, $Date: 2014-01-24 19:26:47 +0000 (Fri, 24 Jan 2014) $
  * @author Blaine Simpson (blaine dot simpson at admc dot com)
  */
 public class SqlTool {
@@ -78,7 +78,7 @@ public class SqlTool {
     public static final String DEFAULT_RCFILE =
         System.getProperty("user.home") + "/sqltool.rc";
     // N.b. the following are static!
-    private static final String revString = "$Revision$";
+    private static final String revString = "$Revision: 5337 $";
     private static final int revStringLength = revString.length();
     private static final String  revnum =
             (revStringLength - " $".length() > "$Revision: ".length())

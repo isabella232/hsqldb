@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -449,7 +449,7 @@ public class QuerySpecification extends QueryExpression {
 
     /**
      * Resolves all column expressions in the GROUP BY clause and beyond.
-     * Replaces any alias column expression in the ORDER BY cluase
+     * Replaces any alias column expression in the ORDER BY clause
      * with the actual select column expression.
      */
     private void resolveColumnReferences(Session session,
@@ -515,10 +515,10 @@ public class QuerySpecification extends QueryExpression {
                                                rangeGroups, false);
         }
 
-        resolveColumnRefernecesInOrderBy(session, rangeGroups, sortAndSlice);
+        resolveColumnReferencesInOrderBy(session, rangeGroups, sortAndSlice);
     }
 
-    void resolveColumnRefernecesInOrderBy(Session session,
+    void resolveColumnReferencesInOrderBy(Session session,
                                           RangeGroup[] rangeGroups,
                                           SortAndSlice sortAndSlice) {
 
@@ -807,7 +807,6 @@ public class QuerySpecification extends QueryExpression {
                             rightPosition);
                 } else if (rightRange.getColumnExpression(name) == null
                            && (!range.isLeftJoin || range.isRightJoin)) {
-
                     if (range.isLeftJoin && range.isRightJoin) {
                         e = new ExpressionLogical(col, e.getRightNode());
                     }
@@ -1127,6 +1126,7 @@ public class QuerySpecification extends QueryExpression {
                    && aggregateSet.size() == 1 && indexLimitVisible == 1) {
             Expression e      = exprColumns[indexStartAggregates];
             int        opType = e.getType();
+            Expression expr   = e.getLeftNode();
 
             switch (opType) {
 
@@ -1149,19 +1149,15 @@ public class QuerySpecification extends QueryExpression {
                     break;
                 }
                 case OpTypes.COUNT : {
-                    if (e.hasCondition()) {
-                        break;
-                    }
-
-                    if (rangeVariables.length == 1 && queryCondition == null) {
-                        Expression expr = e.getLeftNode();
-
+                    if (!e.hasCondition() && rangeVariables.length == 1
+                            && queryCondition == null) {
                         if (expr.getType() == OpTypes.ASTERISK) {
                             isSimpleCount = true;
+
+                            break;
                         } else if (expr.getNullability()
                                    == SchemaObject.Nullability.NO_NULLS) {
-                            if (((ExpressionAggregate) e)
-                                    .isDistinctAggregate) {
+                            if (e.isDistinctAggregate) {
                                 if (expr.opType == OpTypes.COLUMN) {
                                     Table t =
                                         expr.getRangeVariable().getTable();
@@ -1170,16 +1166,18 @@ public class QuerySpecification extends QueryExpression {
                                         if (t.getColumn(t.getPrimaryKey()[0])
                                                 == expr.getColumn()) {
                                             isSimpleCount = true;
+
+                                            break;
                                         }
                                     }
                                 }
                             } else {
                                 isSimpleCount = true;
+
+                                break;
                             }
                         }
                     }
-
-                    break;
                 }
                 default :
             }
@@ -1209,7 +1207,7 @@ public class QuerySpecification extends QueryExpression {
         //     select cola , sum(colb) from t group by abs(cola) // not allowed because incorrect
         // - group by can introduce invisible, derived columns into the query table
         // - check the having expression can be decomposed into
-        //   select list expresions plus group by expressions
+        //   select list expressions plus group by expressions
         // - having cannot introduce additional, derived columns
         // - having cannot reference columns not in the select or group by list
         // - if there is any aggregate in select list but no group by, no
@@ -1219,7 +1217,7 @@ public class QuerySpecification extends QueryExpression {
         // - if grouped by, then order by should be decomposed into the
         //   select list plus group by list
         // - references to column aliases are allowed only in order by (Standard
-        //   compliance) and take precendence over references to non-alias
+        //   compliance) and take precedence over references to non-alias
         //   column names.
         // - references to table / correlation and column list in correlation
         //   names are handled according to the Standard
@@ -1491,10 +1489,9 @@ public class QuerySpecification extends QueryExpression {
 
     private Result buildResult(Session session, int[] limits) {
 
-        RowSetNavigatorData navigator = new RowSetNavigatorData(session,
-            (QuerySpecification) this);
-        Result  result        = Result.newResult(navigator);
-        boolean resultGrouped = isGrouped && !isSimpleDistinct;
+        RowSetNavigatorData navigator = new RowSetNavigatorData(session, this);
+        Result              result        = Result.newResult(navigator);
+        boolean             resultGrouped = isGrouped && !isSimpleDistinct;
 
         result.metaData = resultMetaData;
 
@@ -1608,7 +1605,7 @@ public class QuerySpecification extends QueryExpression {
 
             for (int i = indexLimitVisible; i < indexLimitRowId; i++) {
                 if (i == indexLimitVisible) {
-                    data[i] = it.getRowidObject();
+                    data[i] = Long.valueOf(it.getRowId());
                 } else {
                     data[i] = it.getCurrentRow();
                 }
@@ -1721,8 +1718,8 @@ public class QuerySpecification extends QueryExpression {
         navigator.reset();
 
         if (havingCondition != null) {
-            while (navigator.hasNext()) {
-                Object[] data = (Object[]) navigator.getNext();
+            while (navigator.next()) {
+                Object[] data = navigator.getCurrent();
 
                 if (!Boolean.TRUE.equals(
                         data[indexLimitVisible + groupByColumnCount])) {
@@ -1931,12 +1928,9 @@ public class QuerySpecification extends QueryExpression {
             columnList.add(nameString, column);
         }
 
-        try {
-            resultTable = new TableDerived(session.database, tableName,
-                                           tableType, resultColumnTypes,
-                                           columnList,
-                                           ValuePool.emptyIntArray);
-        } catch (Exception e) {}
+        resultTable = new TableDerived(session.database, tableName, tableType,
+                                       resultColumnTypes, columnList,
+                                       ValuePool.emptyIntArray);
     }
 
     public String getSQL() {
@@ -2156,8 +2150,6 @@ public class QuerySpecification extends QueryExpression {
         if (rangeVariables.length != 1) {
             isBaseMergeable = false;
             isMergeable     = false;
-
-            return;
         }
     }
 

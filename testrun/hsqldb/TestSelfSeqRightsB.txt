@@ -1,4 +1,4 @@
--- $Id$
+-- $Id: TestSelfSeqRightsB.txt 610 2008-12-22 15:54:18Z unsaved $
 -- Test .log persistence of Sequence rights
 
 CONNECT USER blaine PASSWORD "b";

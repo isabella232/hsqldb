@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: return.sql 4717 2011-11-07 00:28:07Z unsaved $
  *
  * Tests the new "return" statement, which is equivalent to a "break" statement
  * with no parameter.

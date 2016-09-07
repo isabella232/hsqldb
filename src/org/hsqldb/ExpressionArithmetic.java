@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,6 @@ import org.hsqldb.error.Error;
 import org.hsqldb.error.ErrorCode;
 import org.hsqldb.lib.HsqlList;
 import org.hsqldb.types.CharacterType;
-import org.hsqldb.types.NumberType;
 import org.hsqldb.types.Type;
 import org.hsqldb.types.Types;
 
@@ -212,6 +211,8 @@ public class ExpressionArithmetic extends Expression {
                 sb.append(dataType.getTypeDefinition());
                 sb.append(' ');
                 break;
+
+            default :
         }
 
         if (getLeftNode() != null) {
@@ -383,6 +384,8 @@ public class ExpressionArithmetic extends Expression {
                                 Type.SQL_TIMESTAMP_WITH_TIME_ZONE;
                         }
                         break;
+
+                    default :
                 }
             }
 
@@ -632,13 +635,13 @@ public class ExpressionArithmetic extends Expression {
             case OpTypes.SIMPLE_COLUMN : {
                 Object value =
                     session.sessionContext.rangeIterators[rangePosition]
-                        .getCurrent(columnIndex);
+                        .getField(columnIndex);
 
                 return value;
             }
             case OpTypes.NEGATE :
-                return ((NumberType) dataType).negate(
-                    nodes[LEFT].getValue(session, nodes[LEFT].dataType));
+                return dataType.negate(nodes[LEFT].getValue(session,
+                        nodes[LEFT].dataType));
         }
 
         Object a = nodes[LEFT].getValue(session);

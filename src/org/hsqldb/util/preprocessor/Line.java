@@ -31,7 +31,7 @@
 
 package org.hsqldb.util.preprocessor;
 
-/* $Id$ */
+/* $Id: Line.java 610 2008-12-22 15:54:18Z unsaved $ */
 
 /**
  * Preprocessor's view of a line in a text document.

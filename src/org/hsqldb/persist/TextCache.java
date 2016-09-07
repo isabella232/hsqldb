@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2014, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@ package org.hsqldb.persist;
 import java.io.UnsupportedEncodingException;
 
 import org.hsqldb.Database;
-import org.hsqldb.DatabaseURL;
+import org.hsqldb.DatabaseType;
 import org.hsqldb.HsqlException;
 import org.hsqldb.Table;
 import org.hsqldb.error.Error;
@@ -46,7 +46,6 @@ import org.hsqldb.rowio.RowInputText;
 import org.hsqldb.rowio.RowInputTextQuoted;
 import org.hsqldb.rowio.RowOutputText;
 import org.hsqldb.rowio.RowOutputTextQuoted;
-import org.hsqldb.scriptio.ScriptWriterText;
 
 // Ito Kazumitsu 20030328 - patch 1.7.2 - character encoding support
 // Dimitri Maziuk - patch for NL in string support
@@ -124,22 +123,11 @@ public class TextCache extends DataFileCache {
     protected void initBuffers() {
 
         if (textFileSettings.isQuoted || textFileSettings.isAllQuoted) {
-            rowIn = new RowInputTextQuoted(textFileSettings.fs,
-                                           textFileSettings.vs,
-                                           textFileSettings.lvs,
-                                           textFileSettings.isAllQuoted);
-            rowOut = new RowOutputTextQuoted(textFileSettings.fs,
-                                             textFileSettings.vs,
-                                             textFileSettings.lvs,
-                                             textFileSettings.isAllQuoted,
-                                             textFileSettings.stringEncoding);
+            rowIn  = new RowInputTextQuoted(textFileSettings);
+            rowOut = new RowOutputTextQuoted(textFileSettings);
         } else {
-            rowIn = new RowInputText(textFileSettings.fs, textFileSettings.vs,
-                                     textFileSettings.lvs, false);
-            rowOut = new RowOutputText(textFileSettings.fs,
-                                       textFileSettings.vs,
-                                       textFileSettings.lvs, false,
-                                       textFileSettings.stringEncoding);
+            rowIn  = new RowInputText(textFileSettings);
+            rowOut = new RowOutputText(textFileSettings);
         }
     }
 
@@ -151,7 +139,7 @@ public class TextCache extends DataFileCache {
         fileFreePosition = 0;
 
         try {
-            int type = database.getType() == DatabaseURL.S_RES
+            int type = database.getType() == DatabaseType.DB_RES
                        ? RAFile.DATA_FILE_JAR
                        : RAFile.DATA_FILE_TEXT;
 
@@ -165,7 +153,7 @@ public class TextCache extends DataFileCache {
 
             initBuffers();
 
-            spaceManager = new DataSpaceManagerSimple(this);
+            spaceManager = new DataSpaceManagerSimple(this, readonly);
         } catch (Throwable t) {
             throw Error.error(t, ErrorCode.FILE_IO_ERROR,
                               ErrorCode.M_TextCache_opening_file_error,
@@ -182,7 +170,7 @@ public class TextCache extends DataFileCache {
     }
 
     /**
-     *  Writes newly created rows to disk. In the current implentation,
+     *  Writes newly created rows to disk. In the current implementation,
      *  such rows have already been saved, so this method just removes a
      *  source file that has no rows.
      */
@@ -198,7 +186,7 @@ public class TextCache extends DataFileCache {
             cache.saveAll();
 
             boolean empty = (dataFile.length()
-                             <= TextFileSettings.NL.length());
+                             <= textFileSettings.bytesForLineEnd.length);
 
             dataFile.synch();
             dataFile.close();
@@ -288,15 +276,18 @@ public class TextCache extends DataFileCache {
     private void clearRowImage(CachedObject row) {
 
         try {
-            int length = row.getStorageSize()
-                         - ScriptWriterText.BYTES_LINE_SEP.length;
+            int length = row.getStorageSize();
+            int count  = length - textFileSettings.bytesForLineEnd.length;
 
             rowOut.reset();
 
             HsqlByteArrayOutputStream out = rowOut.getOutputStream();
 
-            out.fill(' ', length);
-            out.write(ScriptWriterText.BYTES_LINE_SEP);
+            for (; count > 0; count -= textFileSettings.bytesForSpace.length) {
+                out.write(textFileSettings.bytesForSpace);
+            }
+
+            out.write(textFileSettings.bytesForLineEnd);
             dataFile.seek(row.getPos());
             dataFile.write(out.getBuffer(), 0, out.size());
         } catch (Throwable t) {
@@ -350,7 +341,7 @@ public class TextCache extends DataFileCache {
                 buffer.setSize(object.getStorageSize());
 
                 String rowString =
-                    buffer.toString(textFileSettings.stringEncoding);
+                    buffer.toString(textFileSettings.charEncoding);
 
                 ((RowInputText) rowIn).setSource(rowString, object.getPos(),
                                                  buffer.size());
@@ -437,7 +428,7 @@ public class TextCache extends DataFileCache {
             String firstLine = header + TextFileSettings.NL;
 
             try {
-                buf = firstLine.getBytes(textFileSettings.stringEncoding);
+                buf = firstLine.getBytes(textFileSettings.charEncoding);
             } catch (UnsupportedEncodingException e) {
                 buf = firstLine.getBytes();
             }
@@ -451,7 +442,7 @@ public class TextCache extends DataFileCache {
         }
     }
 
-    public int getLineNumber() {
+    public long getLineNumber() {
         return ((RowInputText) rowIn).getLineNumber();
     }
 
@@ -468,7 +459,7 @@ public class TextCache extends DataFileCache {
     }
 
     public TextFileReader getTextFileReader() {
-        return new TextFileReader(dataFile, textFileSettings, rowIn,
-                                  cacheReadonly);
+        return TextFileReader8.newTextFileReader(dataFile, textFileSettings,
+                rowIn, cacheReadonly);
     }
 }

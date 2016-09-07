@@ -1,4 +1,4 @@
-$Id$
+$Id: readme.txt 3931 2010-12-06 05:10:50Z unsaved $
 
 This is the home directory of the extAuthWithSpring sample.
 

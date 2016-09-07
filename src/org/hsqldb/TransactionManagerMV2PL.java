@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@ import org.hsqldb.persist.PersistentStore;
  * Manages rows involved in transactions
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.4
  * @since 2.0.0
  */
 public class TransactionManagerMV2PL extends TransactionManagerCommon
@@ -58,7 +58,7 @@ implements TransactionManager {
 
         database        = db;
         lobSession      = database.sessionManager.getSysLobSession();
-        rowActionMap    = new LongKeyHashMap(10000);
+        rowActionMap    = new LongKeyHashMap(8192);
         txModel         = MVLOCKS;
         catalogNameList = new HsqlName[]{ database.getCatalogName() };
     }
@@ -67,11 +67,19 @@ implements TransactionManager {
         return globalChangeTimestamp.get();
     }
 
+    public void setGlobalChangeTimestamp(long ts) {
+        globalChangeTimestamp.set(ts);
+    }
+
     public boolean isMVRows() {
         return true;
     }
 
     public boolean isMVCC() {
+        return false;
+    }
+
+    public boolean is2PL() {
         return false;
     }
 
@@ -159,12 +167,14 @@ implements TransactionManager {
                 addToCommittedQueue(session, list);
             }
 
+            session.isTransaction = false;
+
             endTransactionTPL(session);
         } finally {
             writeLock.unlock();
         }
 
-        session.tempSet.clear();
+        session.actionSet.clear();
 
         return true;
     }
@@ -180,6 +190,10 @@ implements TransactionManager {
 
             rollbackPartial(session, 0, session.transactionTimestamp);
             endTransaction(session);
+            session.logSequences();
+
+            session.isTransaction = false;
+
             endTransactionTPL(session);
         } finally {
             writeLock.unlock();
@@ -482,6 +496,7 @@ implements TransactionManager {
             if (!session.isTransaction) {
                 session.actionTimestamp      = getNextGlobalChangeTimestamp();
                 session.transactionTimestamp = session.actionTimestamp;
+                session.isPreTransaction     = false;
                 session.isTransaction        = true;
 
                 transactionCount++;
@@ -499,10 +514,6 @@ implements TransactionManager {
      * (depending on isolation mode)
      */
     public void beginAction(Session session, Statement cs) {
-
-        if (session.hasLocks(cs)) {
-            return;
-        }
 
         writeLock.lock();
 
@@ -549,6 +560,7 @@ implements TransactionManager {
 
             if (!session.isTransaction) {
                 session.transactionTimestamp = session.actionTimestamp;
+                session.isPreTransaction     = false;
                 session.isTransaction        = true;
 
                 liveTransactionTimestamps.addLast(
@@ -572,13 +584,10 @@ implements TransactionManager {
      * that are no longer required. remove transactions ended before the first
      * timestamp in liveTransactionsSession queue
      */
-    void endTransaction(Session session) {
+    private void endTransaction(Session session) {
 
         long timestamp = session.transactionTimestamp;
-
-        session.isTransaction = false;
-
-        int index = liveTransactionTimestamps.indexOf(timestamp);
+        int  index     = liveTransactionTimestamps.indexOf(timestamp);
 
         if (index >= 0) {
             transactionCount--;

@@ -31,7 +31,7 @@
 
 package org.hsqldb.util.preprocessor;
 
-/* $Id$ */
+/* $Id: PreprocessorException.java 610 2008-12-22 15:54:18Z unsaved $ */
 
 /**
  * Thrown when preprocessing fails.

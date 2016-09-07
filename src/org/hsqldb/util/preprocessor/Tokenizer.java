@@ -31,7 +31,7 @@
 
 package org.hsqldb.util.preprocessor;
 
-/* $Id$ */
+/* $Id: Tokenizer.java 610 2008-12-22 15:54:18Z unsaved $ */
 
 /**
  * Simple preprocessor directive tokenizer.

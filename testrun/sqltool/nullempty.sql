@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: nullempty.sql 5406 2014-10-13 20:53:18Z unsaved $
  *
  * This test written verbosely to make it easier to partially share it with
  * script sample/nullempty.sql.

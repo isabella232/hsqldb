@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2014, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,7 @@ public interface DataSpaceManager {
     int tableIdEmpty     = 0;
     int tableIdDirectory = 1;
     int tableIdLookup    = 5;
+    int tableIdSetAside  = 6;
     int tableIdDefault   = 7;
     int tableIdFirst     = 8;
 
@@ -55,7 +56,7 @@ public interface DataSpaceManager {
 
     int getNewTableSpaceID();
 
-    long getFileBlocks(int tableId, int blockCount);
+    long getFileBlocks(int spaceId, int blockCount);
 
     void freeTableSpace(int spaceId);
 
@@ -76,5 +77,5 @@ public interface DataSpaceManager {
 
     int getFileBlockItemCount();
 
-    public DirectoryBlockCachedObject[] getDirectoryList();
+    DirectoryBlockCachedObject[] getDirectoryList();
 }

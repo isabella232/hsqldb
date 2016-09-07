@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,7 @@ import org.hsqldb.types.Types;
  * Implementation of Statement for DML statements.<p>
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.5
  * @since 1.9.0
  */
 
@@ -113,7 +113,7 @@ public class StatementDML extends StatementDMQL {
             limit = limits[1];
         }
 
-        setDatabseObjects(session, compileContext);
+        setDatabaseObjects(session, compileContext);
         checkAccessRights(session);
 
         if (type == StatementTypes.TRUNCATE) {
@@ -127,7 +127,7 @@ public class StatementDML extends StatementDMQL {
      * Instantiate this as an UPDATE statement.
      */
     StatementDML(Session session, Expression[] targets, Table targetTable,
-                 RangeVariable targetRange, RangeVariable rangeVars[],
+                 RangeVariable targetRange, RangeVariable[] rangeVars,
                  int[] updateColumnMap, Expression[] colExpressions,
                  boolean[] checkColumns, CompileContext compileContext,
                  SortAndSlice sortAndSlice) {
@@ -153,7 +153,7 @@ public class StatementDML extends StatementDMQL {
         }
 
         setupChecks();
-        setDatabseObjects(session, compileContext);
+        setDatabaseObjects(session, compileContext);
         checkAccessRights(session);
         targetRange.addAllColumns();
     }
@@ -192,7 +192,7 @@ public class StatementDML extends StatementDMQL {
         this.isMergeDeleteFirst   = deleteFirst;
 
         setupChecks();
-        setDatabseObjects(session, compileContext);
+        setDatabaseObjects(session, compileContext);
         checkAccessRights(session);
     }
 
@@ -548,18 +548,6 @@ public class StatementDML extends StatementDMQL {
                                               updateExpressions, colTypes,
                                               data);
 
-            if (updatableTableCheck != null) {
-                it.setCurrent(newData);
-
-                boolean check = updatableTableCheck.testCondition(session);
-
-                if (!check) {
-                    it.release();
-
-                    throw Error.error(ErrorCode.X_44000);
-                }
-            }
-
             rowset.addRow(session, row, newData, colTypes, updateColumnMap);
 
             session.sessionContext.rownum++;
@@ -882,14 +870,15 @@ public class StatementDML extends StatementDMQL {
         RangeIterator   checkIterator = null;
 
         if (updatableTableCheck != null) {
-            checkIterator = checkRangeVariable.getIterator(session);
+            checkIterator =
+                session.sessionContext.getCheckIterator(checkRangeVariable);
         }
 
         newData.beforeFirst();
 
         if (baseTable.identityColumn != -1) {
-            while (newData.hasNext()) {
-                Object[] data = (Object[]) newData.getNext();
+            while (newData.next()) {
+                Object[] data = newData.getCurrent();
 
                 session.sessionData.startRowProcessing();
                 baseTable.setIdentityColumn(session, data);
@@ -899,8 +888,8 @@ public class StatementDML extends StatementDMQL {
         }
 
         if (baseTable.triggerLists[Trigger.INSERT_BEFORE_ROW].length > 0) {
-            while (newData.hasNext()) {
-                Object[] data = (Object[]) newData.getNext();
+            while (newData.next()) {
+                Object[] data = newData.getCurrent();
 
                 session.sessionData.startRowProcessing();
                 baseTable.fireTriggers(session, Trigger.INSERT_BEFORE_ROW,
@@ -910,14 +899,14 @@ public class StatementDML extends StatementDMQL {
             newData.beforeFirst();
         }
 
-        while (newData.hasNext()) {
-            Object[] data = (Object[]) newData.getNext();
+        while (newData.next()) {
+            Object[] data = newData.getCurrent();
 
             // for identity using global sequence
             session.sessionData.startRowProcessing();
-            baseTable.insertSingleRow(session, store, data, null);
+            baseTable.generateAndCheckData(session, data);
 
-            if (checkIterator != null) {
+            if (updatableTableCheck != null) {
                 checkIterator.setCurrent(data);
 
                 boolean check = updatableTableCheck.testCondition(session);
@@ -926,6 +915,8 @@ public class StatementDML extends StatementDMQL {
                     throw Error.error(ErrorCode.X_44000);
                 }
             }
+
+            baseTable.insertSingleRow(session, store, data, null);
 
             if (generatedNavigator != null) {
                 Object[] generatedValues = getGeneratedColumns(data);
@@ -936,8 +927,8 @@ public class StatementDML extends StatementDMQL {
 
         newData.beforeFirst();
 
-        while (newData.hasNext()) {
-            Object[] data = (Object[]) newData.getNext();
+        while (newData.next()) {
+            Object[] data = newData.getCurrent();
 
             performIntegrityChecks(session, baseTable, null, data, null);
         }
@@ -945,8 +936,8 @@ public class StatementDML extends StatementDMQL {
         newData.beforeFirst();
 
         if (baseTable.triggerLists[Trigger.INSERT_AFTER_ROW].length > 0) {
-            while (newData.hasNext()) {
-                Object[] data = (Object[]) newData.getNext();
+            while (newData.next()) {
+                Object[] data = newData.getCurrent();
 
                 baseTable.fireTriggers(session, Trigger.INSERT_AFTER_ROW,
                                        null, data, null);
@@ -1079,7 +1070,14 @@ public class StatementDML extends StatementDMQL {
                RowSetNavigatorDataChange navigator,
                RowSetNavigator generatedNavigator) {
 
-        int rowCount = navigator.getSize();
+        int           rowCount      = navigator.getSize();
+        boolean autoUpdatedColumn   = table.hasUpdatedColumn(updateColumnMap);
+        RangeIterator checkIterator = null;
+
+        if (updatableTableCheck != null) {
+            checkIterator =
+                session.sessionContext.getCheckIterator(checkRangeVariable);
+        }
 
         // set identity column where null and check columns
         for (int i = 0; i < rowCount; i++) {
@@ -1097,6 +1095,10 @@ public class StatementDML extends StatementDMQL {
              */
             table.setIdentityColumn(session, data);
             table.setGeneratedColumns(session, data);
+
+            if (autoUpdatedColumn) {
+                table.setUpdatedColumns(session, data);
+            }
         }
 
         navigator.beforeFirst();
@@ -1134,6 +1136,17 @@ public class StatementDML extends StatementDMQL {
                 currentTable.fireTriggers(session, Trigger.UPDATE_BEFORE_ROW,
                                           row.getData(), data, changedColumns);
                 currentTable.enforceRowConstraints(session, data);
+            }
+
+            // check the view condition after all the triggered changed
+            if (updatableTableCheck != null) {
+                checkIterator.setCurrent(data);
+
+                boolean check = updatableTableCheck.testCondition(session);
+
+                if (!check) {
+                    throw Error.error(ErrorCode.X_44000);
+                }
             }
         }
 
@@ -1289,15 +1302,14 @@ public class StatementDML extends StatementDMQL {
 
         PersistentStore store   = targetTable.getRowStore(session);
         RowIterator     it = targetTable.getPrimaryIndex().firstRow(store);
-        boolean         hasData = it.hasNext();
+        boolean         hasData = false;
 
         for (int i = 0; i < targetTable.fkMainConstraints.length; i++) {
             if (targetTable.fkMainConstraints[i].getRef() != targetTable) {
                 HsqlName tableName =
                     targetTable.fkMainConstraints[i].getRef().getName();
                 Table refTable =
-                    session.database.schemaManager.getUserTable(session,
-                        tableName);
+                    session.database.schemaManager.getUserTable(tableName);
 
                 if (!refTable.isEmpty(session)) {
                     throw Error.error(ErrorCode.X_23504,
@@ -1307,11 +1319,13 @@ public class StatementDML extends StatementDMQL {
         }
 
         try {
-            while (it.hasNext()) {
-                Row row = it.getNextRow();
+            while (it.next()) {
+                Row row = it.getCurrentRow();
 
                 session.addDeleteAction((Table) row.getTable(), store, row,
                                         null);
+
+                hasData = true;
             }
 
             if (restartIdentity && targetTable.identitySequence != null) {
@@ -1597,14 +1611,8 @@ public class StatementDML extends StatementDMQL {
 
             RowIterator refiterator = c.findFkRef(session, row.getData());
 
-            if (!refiterator.hasNext()) {
-                refiterator.release();
-
-                continue;
-            }
-
-            while (refiterator.hasNext()) {
-                Row      refRow  = refiterator.getNextRow();
+            while (refiterator.next()) {
+                Row      refRow  = refiterator.getCurrentRow();
                 Object[] refData = null;
 
                 /** @todo use MATCH */

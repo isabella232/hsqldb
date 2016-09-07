@@ -31,7 +31,7 @@
  */
 
 
-/* @(#)$Id$ */
+/* @(#)$Id: SqlFileScanner.java 5472 2015-05-22 23:00:58Z fredt $ */
 
 package org.hsqldb.cmdline.sqltool;
 

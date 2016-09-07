@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,14 +43,11 @@ import org.hsqldb.rowio.RowOutputInterface;
 /**
  *  Subclass of NodeAVL for huge databases.
  * @author Fred Toussi (fredt@users dot sourceforge dot net)
- * @version 2.3.3
+ * @version 2.3.4
  * @since 2.2.9
  */
 public class NodeAVLDiskLarge extends NodeAVL {
 
-    final RowAVLDisk row;
-
-    //
     private long            iLeft   = NO_POS;
     private long            iRight  = NO_POS;
     private long            iParent = NO_POS;
@@ -60,11 +57,12 @@ public class NodeAVLDiskLarge extends NodeAVL {
     public NodeAVLDiskLarge(RowAVLDisk r, RowInputInterface in,
                             int id) throws IOException {
 
-        int ext;
+        super(r);
 
-        row      = r;
-        iId      = id;
-        ext      = in.readInt();
+        iId = id;
+
+        int ext = in.readInt();
+
         iBalance = (byte) ext;
         iLeft    = in.readInt() & 0xffffffffL;
         iRight   = in.readInt() & 0xffffffffL;
@@ -90,7 +88,9 @@ public class NodeAVLDiskLarge extends NodeAVL {
     }
 
     public NodeAVLDiskLarge(RowAVLDisk r, int id) {
-        row = r;
+
+        super(r);
+
         iId = id;
     }
 
@@ -101,7 +101,7 @@ public class NodeAVLDiskLarge extends NodeAVL {
         iParent  = NO_POS;
         iBalance = 0;
 
-        row.setNodesChanged();
+        ((RowAVLDisk) row).setNodesChanged();
     }
 
     public boolean isInMemory() {
@@ -117,14 +117,7 @@ public class NodeAVLDiskLarge extends NodeAVL {
     }
 
     public RowAVL getRow(PersistentStore store) {
-
-        if (!row.isInMemory()) {
-            return (RowAVLDisk) store.get(this.row, false);
-        } else {
-            row.updateAccessCount(store.getAccessCount());
-        }
-
-        return row;
+        return (RowAVLDisk) store.get(this.row, false);
     }
 
     public Object[] getData(PersistentStore store) {
@@ -164,9 +157,8 @@ public class NodeAVLDiskLarge extends NodeAVL {
     NodeAVL getLeft(PersistentStore store) {
 
         NodeAVLDiskLarge node = this;
-        RowAVLDisk       row  = this.row;
+        RowAVLDisk       row  = (RowAVLDisk) store.get(this.row, false);
 
-        row  = (RowAVLDisk) store.get(this.row, false);
         node = (NodeAVLDiskLarge) row.getNode(iId);
 
         if (node.iLeft == NO_POS) {
@@ -181,9 +173,8 @@ public class NodeAVLDiskLarge extends NodeAVL {
     NodeAVL getRight(PersistentStore store) {
 
         NodeAVLDiskLarge node = this;
-        RowAVLDisk       row  = this.row;
+        RowAVLDisk       row  = (RowAVLDisk) store.get(this.row, false);
 
-        row  = (RowAVLDisk) store.get(this.row, false);
         node = (NodeAVLDiskLarge) row.getNode(iId);
 
         if (node.iRight == NO_POS) {
@@ -198,9 +189,8 @@ public class NodeAVLDiskLarge extends NodeAVL {
     NodeAVL getParent(PersistentStore store) {
 
         NodeAVLDiskLarge node = this;
-        RowAVLDisk       row  = this.row;
+        RowAVLDisk       row  = (RowAVLDisk) store.get(this.row, false);
 
-        row  = (RowAVLDisk) store.get(this.row, false);
         node = (NodeAVLDiskLarge) row.getNode(iId);
 
         if (node.iParent == NO_POS) {
@@ -215,9 +205,8 @@ public class NodeAVLDiskLarge extends NodeAVL {
     public int getBalance(PersistentStore store) {
 
         NodeAVLDiskLarge node = this;
-        RowAVLDisk       row  = this.row;
+        RowAVLDisk       row  = (RowAVLDisk) store.get(this.row, false);
 
-        row  = (RowAVLDisk) store.get(this.row, false);
         node = (NodeAVLDiskLarge) row.getNode(iId);
 
         return node.iBalance;
@@ -226,9 +215,8 @@ public class NodeAVLDiskLarge extends NodeAVL {
     boolean isRoot(PersistentStore store) {
 
         NodeAVLDiskLarge node = this;
-        RowAVLDisk       row  = this.row;
+        RowAVLDisk       row  = (RowAVLDisk) store.get(this.row, false);
 
-        row  = (RowAVLDisk) store.get(this.row, false);
         node = (NodeAVLDiskLarge) row.getNode(iId);
 
         return node.iParent == NO_POS;
@@ -237,9 +225,8 @@ public class NodeAVLDiskLarge extends NodeAVL {
     boolean isFromLeft(PersistentStore store) {
 
         NodeAVLDiskLarge node = this;
-        RowAVLDisk       row  = this.row;
+        RowAVLDisk       row  = (RowAVLDisk) store.get(this.row, false);
 
-        row  = (RowAVLDisk) store.get(this.row, false);
         node = (NodeAVLDiskLarge) row.getNode(iId);
 
         if (node.iParent == NO_POS) {
@@ -259,9 +246,8 @@ public class NodeAVLDiskLarge extends NodeAVL {
     NodeAVL setParent(PersistentStore store, NodeAVL n) {
 
         NodeAVLDiskLarge node = this;
-        RowAVLDisk       row  = this.row;
+        RowAVLDisk       row  = (RowAVLDisk) store.get(this.row, true);
 
-        row  = (RowAVLDisk) store.get(this.row, true);
         node = (NodeAVLDiskLarge) row.getNode(iId);
 
         row.setNodesChanged();
@@ -277,9 +263,8 @@ public class NodeAVLDiskLarge extends NodeAVL {
     public NodeAVL setBalance(PersistentStore store, int b) {
 
         NodeAVLDiskLarge node = this;
-        RowAVLDisk       row  = this.row;
+        RowAVLDisk       row  = (RowAVLDisk) store.get(this.row, true);
 
-        row  = (RowAVLDisk) store.get(this.row, true);
         node = (NodeAVLDiskLarge) row.getNode(iId);
 
         row.setNodesChanged();
@@ -294,9 +279,8 @@ public class NodeAVLDiskLarge extends NodeAVL {
     NodeAVL setLeft(PersistentStore store, NodeAVL n) {
 
         NodeAVLDiskLarge node = this;
-        RowAVLDisk       row  = this.row;
+        RowAVLDisk       row  = (RowAVLDisk) store.get(this.row, true);
 
-        row  = (RowAVLDisk) store.get(this.row, true);
         node = (NodeAVLDiskLarge) row.getNode(iId);
 
         row.setNodesChanged();
@@ -312,9 +296,8 @@ public class NodeAVLDiskLarge extends NodeAVL {
     NodeAVL setRight(PersistentStore store, NodeAVL n) {
 
         NodeAVLDiskLarge node = this;
-        RowAVLDisk       row  = this.row;
+        RowAVLDisk       row  = (RowAVLDisk) store.get(this.row, true);
 
-        row  = (RowAVLDisk) store.get(this.row, true);
         node = (NodeAVLDiskLarge) row.getNode(iId);
 
         row.setNodesChanged();
@@ -347,7 +330,7 @@ public class NodeAVLDiskLarge extends NodeAVL {
     public void replace(PersistentStore store, Index index, NodeAVL n) {
 
         NodeAVLDiskLarge node = this;
-        RowAVLDisk       row  = this.row;
+        RowAVLDisk       row  = (RowAVLDisk) this.row;
 
         if (!row.keepInMemory(true)) {
             row  = (RowAVLDisk) store.get(this.row, true);
@@ -372,8 +355,7 @@ public class NodeAVLDiskLarge extends NodeAVL {
     boolean equals(NodeAVL n) {
 
         if (n instanceof NodeAVLDiskLarge) {
-            return this == n
-                   || row.getPos() == ((NodeAVLDiskLarge) n).getPos();
+            return this == n || row.getPos() == n.getPos();
         }
 
         return false;

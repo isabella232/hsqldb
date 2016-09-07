@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,7 +55,7 @@ import org.hsqldb.types.Type;
  * Manages all SCHEMA related database objects
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.4
  * @since 1.8.0
  */
 public class SchemaManager {
@@ -606,7 +606,7 @@ public class SchemaManager {
                 }
                 case SchemaObject.INDEX :
                 case SchemaObject.CONSTRAINT :
-                    findSchemaObject(name.name, name.schema.name, name.type);
+                default :
             }
 
             SchemaObject object = findSchemaObject(name.name,
@@ -641,7 +641,7 @@ public class SchemaManager {
                 HsqlName reference = (HsqlName) references.get(i);
 
                 if (reference.type == SchemaObject.TABLE) {
-                    Table table = findUserTable(null, reference.name,
+                    Table table = findUserTable(reference.name,
                                                 reference.schema.name);
 
                     if (table != null && !table.isTemp()) {
@@ -711,6 +711,13 @@ public class SchemaManager {
             case SchemaObject.SPECIFIC_ROUTINE :
                 set = schema.specificRoutineLookup;
                 break;
+
+            case SchemaObject.REFERENCE :
+                set = schema.referenceLookup;
+                break;
+
+            default :
+                throw Error.runtimeError(ErrorCode.U_S0500, "SchemaObjectSet");
         }
 
         return set;
@@ -730,8 +737,8 @@ public class SchemaManager {
         }
     }
 
-    public Table getUserTable(Session session, HsqlName name) {
-        return getUserTable(session, name.name, name.schema.name);
+    public Table getUserTable(HsqlName name) {
+        return getUserTable(name.name, name.schema.name);
     }
 
     /**
@@ -739,9 +746,9 @@ public class SchemaManager {
      *  context of the specified Session.
      *  Throws if the table does not exist in the context.
      */
-    public Table getUserTable(Session session, String name, String schema) {
+    public Table getUserTable(String name, String schema) {
 
-        Table t = findUserTable(session, name, schema);
+        Table t = findUserTable(name, schema);
 
         if (t == null) {
             String longName = schema == null ? name
@@ -758,8 +765,7 @@ public class SchemaManager {
      *  context of the specified schema. It excludes system tables.
      *  Returns null if the table does not exist in the context.
      */
-    public Table findUserTable(Session session, String name,
-                               String schemaName) {
+    public Table findUserTable(String name, String schemaName) {
 
         readLock.lock();
 
@@ -931,16 +937,15 @@ public class SchemaManager {
         if (!table.isView() && table.hasLobColumn()) {
             RowIterator it = table.rowIterator(session);
 
-            while (it.hasNext()) {
-                Row      row  = it.getNextRow();
-                Object[] data = row.getData();
+            while (it.next()) {
+                Object[] data = it.getCurrent();
 
                 session.sessionData.adjustLobUsageCount(table, data, -1);
             }
         }
 
         if (table.tableType == TableBase.TEMP_TABLE) {
-            Session sessions[] = database.sessionManager.getAllSessions();
+            Session[] sessions = database.sessionManager.getAllSessions();
 
             for (int i = 0; i < sessions.length; i++) {
                 sessions[i].sessionData.persistentStoreCollection.removeStore(
@@ -1022,6 +1027,8 @@ public class SchemaManager {
 
                         object.compile(session, null);
                         break;
+
+                    default :
                 }
             }
 
@@ -1071,6 +1078,8 @@ public class SchemaManager {
 
                         object.compile(session, null);
                         break;
+
+                    default :
                 }
             }
 
@@ -1107,6 +1116,28 @@ public class SchemaManager {
         }
 
         return collation;
+    }
+
+    public NumberSequence findSequence(Session session, String name,
+                                       String schemaName) {
+
+        NumberSequence seq = getSequence(name,
+                                         session.getSchemaName(schemaName),
+                                         false);
+
+        if (seq == null && schemaName == null) {
+            schemaName = session.getSchemaName(schemaName);
+
+            ReferenceObject ref = findSynonym(name, schemaName,
+                                              SchemaObject.SEQUENCE);
+
+            if (ref != null) {
+                seq = getSequence(ref.target.name, ref.target.schema.name,
+                                  false);
+            }
+        }
+
+        return seq;
     }
 
     public NumberSequence getSequence(String name, String schemaName,
@@ -1389,6 +1420,37 @@ public class SchemaManager {
         return findSchemaObject(name, prefix, type);
     }
 
+    public ReferenceObject findSynonym(String name, String schemaName,
+                                       int type) {
+
+        Schema schema = (Schema) schemaMap.get(schemaName);
+
+        if (schema == null) {
+            return null;
+        }
+
+        ReferenceObject reference = schema.findReference(name, type);
+
+        return reference;
+    }
+
+    public SchemaObject findAnySchemaObject(String name, String schemaName) {
+
+        readLock.lock();
+
+        try {
+            Schema schema = (Schema) schemaMap.get(schemaName);
+
+            if (schema == null) {
+                return null;
+            }
+
+            return schema.findAnySchemaObject(name);
+        } finally {
+            readLock.unlock();
+        }
+    }
+
     public SchemaObject findSchemaObject(String name, String schemaName,
                                          int type) {
 
@@ -1425,7 +1487,7 @@ public class SchemaManager {
                 return null;
             }
 
-            return findUserTable(session, indexName.parent.name, schemaName);
+            return findUserTable(indexName.parent.name, schemaName);
         } finally {
             readLock.unlock();
         }
@@ -1439,8 +1501,7 @@ public class SchemaManager {
         writeLock.lock();
 
         try {
-            Table t = getUserTable(session, name.parent.name,
-                                   name.parent.schema.name);
+            Table t = getUserTable(name.parent.name, name.parent.schema.name);
             TableWorks tw = new TableWorks(session, t);
 
             tw.dropIndex(name.name);
@@ -1457,8 +1518,7 @@ public class SchemaManager {
         writeLock.lock();
 
         try {
-            Table t = getUserTable(session, name.parent.name,
-                                   name.parent.schema.name);
+            Table t = getUserTable(name.parent.name, name.parent.schema.name);
             TableWorks tw = new TableWorks(session, t);
 
             tw.dropConstraint(name.name, cascade);
@@ -1499,7 +1559,7 @@ public class SchemaManager {
 
         try {
 
-            // toDrop.schema may be null because it is not registerd
+            // toDrop.schema may be null because it is not registered
             Schema schema =
                 (Schema) schemaMap.get(toDrop.getSchemaName().name);
 
@@ -1931,6 +1991,9 @@ public class SchemaManager {
                     Table table = (Table) schema.tableList.get(tableName.name);
 
                     return table.getIndex(name.name);
+
+                case SchemaObject.REFERENCE :
+                    return schema.referenceLookup.getObject(name.name);
             }
 
             return null;
@@ -2011,7 +2074,6 @@ public class SchemaManager {
                         break;
 
                     default :
-                        break;
                 }
 
                 refName = null;
@@ -2313,6 +2375,12 @@ public class SchemaManager {
 
                     break;
                 }
+                case SchemaObject.REFERENCE : {
+                    set    = schema.referenceLookup;
+                    object = set.getObject(name.name);
+
+                    break;
+                }
                 default :
                     throw Error.runtimeError(ErrorCode.U_S0500,
                                              "SchemaManager");
@@ -2467,6 +2535,16 @@ public class SchemaManager {
                 }
             }
 
+            it = unresolved.iterator();
+
+            while (it.hasNext()) {
+                SchemaObject object = (SchemaObject) it.next();
+
+                if (object instanceof ReferenceObject) {
+                    list.add(object.getSQL());
+                }
+            }
+
             schemas = schemaMap.values().iterator();
 
             while (schemas.hasNext()) {
@@ -2480,9 +2558,9 @@ public class SchemaManager {
                     continue;
                 }
 
-                String[] t = schema.getTriggerSQL();
+                HsqlArrayList t = schema.getTriggerSQL();
 
-                if (t.length > 0) {
+                if (t.size() > 0) {
                     list.add(Schema.getSetSchemaSQL(schema.getName()));
                     list.addAll(t);
                 }
@@ -2802,7 +2880,7 @@ public class SchemaManager {
         HashMappedList columnList = new HashMappedList();
 
         for (int i = 0; i < columnTypes.length; i++) {
-            HsqlName name = database.nameManager.getAutoColumnName(i + 1);
+            HsqlName name = HsqlNameManager.getAutoColumnName(i + 1);
             ColumnSchema column = new ColumnSchema(name, columnTypes[i], true,
                                                    false, null);
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2014, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,11 +58,14 @@ public interface TransactionManager {
     int resetSessionTables   = 2;
     int resetSessionResetAll = 3;
     int resetSessionRollback = 4;
-    int resetSessionClose    = 5;
+    int resetSessionAbort    = 5;
+    int resetSessionClose    = 6;
 
     long getGlobalChangeTimestamp();
 
     long getNextGlobalChangeTimestamp();
+
+    void setGlobalChangeTimestamp(long ts);
 
     RowAction addDeleteAction(Session session, Table table,
                               PersistentStore store, Row row, int[] colMap);
@@ -95,6 +98,8 @@ public interface TransactionManager {
     boolean isMVRows();
 
     boolean isMVCC();
+
+    boolean is2PL();
 
     boolean prepareCommitActions(Session session);
 

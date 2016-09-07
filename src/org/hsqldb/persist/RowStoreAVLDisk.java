@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,7 @@
 package org.hsqldb.persist;
 
 import java.io.IOException;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.hsqldb.HsqlException;
 import org.hsqldb.Row;
@@ -55,8 +54,6 @@ import org.hsqldb.navigator.RowIterator;
 import org.hsqldb.rowio.RowInputInterface;
 import org.hsqldb.rowio.RowOutputInterface;
 
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-
 /*
  * Implementation of PersistentStore for CACHED tables.
  *
@@ -69,9 +66,6 @@ public class RowStoreAVLDisk extends RowStoreAVL implements PersistentStore {
     DataFileCache      cache;
     RowOutputInterface rowOut;
     boolean            largeData;
-    ReadWriteLock      lock;
-    Lock               readLock;
-    Lock               writeLock;
 
     public RowStoreAVLDisk(DataFileCache cache, Table table) {
 
@@ -100,10 +94,6 @@ public class RowStoreAVLDisk extends RowStoreAVL implements PersistentStore {
 
     public boolean isMemory() {
         return false;
-    }
-
-    public int getAccessCount() {
-        return cache.getAccessCount();
     }
 
     public void set(CachedObject object) {
@@ -423,8 +413,8 @@ public class RowStoreAVLDisk extends RowStoreAVL implements PersistentStore {
             RowIterator it = rowIterator();
 
             // todo - check this - must remove from old space, not new one
-            while (it.hasNext()) {
-                Row row = it.getNextRow();
+            while (it.next()) {
+                Row row = it.getCurrentRow();
 
                 cache.remove(row);
                 tableSpace.release(row.getPos(), row.getStorageSize());
@@ -450,8 +440,8 @@ public class RowStoreAVLDisk extends RowStoreAVL implements PersistentStore {
 
         RowIterator it = indexList[0].firstRow(this);
 
-        while (it.hasNext()) {
-            CachedObject row = it.getNextRow();
+        while (it.next()) {
+            CachedObject row = it.getCurrentRow();
 
             pointerLookup.addUnsorted(row.getPos(), row.getStorageSize());
         }
@@ -467,8 +457,8 @@ public class RowStoreAVLDisk extends RowStoreAVL implements PersistentStore {
 
         it = indexList[0].firstRow(this);
 
-        while (it.hasNext()) {
-            CachedObject row    = it.getNextRow();
+        while (it.next()) {
+            CachedObject row    = it.getCurrentRow();
             long         newPos = pointerLookup.lookup(row.getPos());
 
             // write

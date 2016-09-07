@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@ import org.hsqldb.error.ErrorCode;
 import org.hsqldb.lib.ArrayUtil;
 
 /**
- * Type subclass for various typs of INTERVAL.<p>
+ * Type subclass for various types of INTERVAL.<p>
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
  * @version 2.3.4
@@ -572,7 +572,7 @@ public final class IntervalType extends DTIType {
                 }
             }
             case Types.SQL_INTERVAL_YEAR : {
-                long months = (((IntervalMonthData) a).units / 12) * 12;
+                long months = (((IntervalMonthData) a).units / 12) * 12L;
 
                 return new IntervalMonthData(months, this);
             }
@@ -716,8 +716,8 @@ public final class IntervalType extends DTIType {
             return false;
         }
 
-        return !(isYearMonthIntervalType()
-                 ^ ((IntervalType) otherType).isYearMonthIntervalType());
+        return isYearMonthIntervalType()
+               == ((IntervalType) otherType).isYearMonthIntervalType();
     }
 
     public int canMoveFrom(Type otherType) {
@@ -878,9 +878,8 @@ public final class IntervalType extends DTIType {
                 } else if (a instanceof TimestampData
                            && b instanceof TimestampData) {
                     boolean isYear = typeCode == Types.SQL_INTERVAL_YEAR;
-                    long months =
-                        DateTimeType.subtractMonths((TimestampData) a,
-                                                    (TimestampData) b, isYear);
+                    long months = DateTimeType.subtractMonths(session,
+                        (TimestampData) a, (TimestampData) b, isYear);
 
                     return new IntervalMonthData(months, this);
                 }
@@ -1019,7 +1018,7 @@ public final class IntervalType extends DTIType {
                                           true);
         } else {
             if (isYearMonth) {
-                return result.longValue();
+                return Long.valueOf(result.longValue());
             } else {
                 return result;
             }
@@ -1549,7 +1548,7 @@ public final class IntervalType extends DTIType {
         switch (part) {
 
             case Types.SQL_INTERVAL_YEAR :
-                return (int) (((IntervalMonthData) interval).units / 12);
+                return ((IntervalMonthData) interval).units / 12;
 
             case Types.SQL_INTERVAL_MONTH :
                 units = ((IntervalMonthData) interval).units;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2014, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -132,7 +132,7 @@ public class AuthBeanMultiplexer {
     }
 
     /**
-     * Wrapper for setAuthFunctioNBeans(String, List<AuthFunctionBean>)
+     * Wrapper for setAuthFunctionBeans(String, List<AuthFunctionBean>)
      *
      * @param c  An open Connection to the desired database.
      * @throws SQLException if failed to obtain unique name from given
@@ -249,7 +249,7 @@ public class AuthBeanMultiplexer {
         /* This method both logs and throws because due to JDBC requirements,
          * the Exception messages will not make it to applications.
          * Though these messages won't make it to the end user, at least the
-         * application adminster will have access to problem details. */
+         * application administer will have access to problem details. */
         if (database == null || database.length() != 16) {
             throw new IllegalStateException("Internal problem.  "
                     + "Database name not exactly 16 characters long: "

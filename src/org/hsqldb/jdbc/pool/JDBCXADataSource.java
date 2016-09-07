@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2014, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,8 +33,10 @@ package org.hsqldb.jdbc.pool;
 
 import java.io.Serializable;
 import java.sql.SQLException;
+import java.util.Iterator;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
+import java.util.HashSet;
+import java.util.HashMap;
 import javax.naming.NamingException;
 import javax.naming.Reference;
 import javax.naming.Referenceable;
@@ -54,11 +56,8 @@ import org.hsqldb.jdbc.JDBCCommonDataSource;
 import org.hsqldb.jdbc.JDBCConnection;
 import org.hsqldb.jdbc.JDBCDriver;
 import org.hsqldb.jdbc.JDBCUtil;
-import org.hsqldb.lib.HashMap;
-import org.hsqldb.lib.HashSet;
-import org.hsqldb.lib.Iterator;
 
-// @(#)$Id$
+// @(#)$Id: JDBCXADataSource.java 5531 2016-02-08 16:38:51Z fredt $
 
 /**
  * Connection factory for JDBCXAConnections.
@@ -96,7 +95,7 @@ implements XADataSource, Serializable, Referenceable
                          + ".getXAConnection()...");
 */
 
-        // Use JDBCDriver directly so there is no need to regiser with DriverManager
+        // Use JDBCDriver directly so there is no need to register with DriverManager
         JDBCConnection connection =
             (JDBCConnection) JDBCDriver.getConnection(url, connectionProps);
         JDBCXAConnection xaConnection = new JDBCXAConnection(this, connection);

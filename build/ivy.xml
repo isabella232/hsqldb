@@ -1,5 +1,5 @@
 <ivy-module version="2.0">
-  <!-- $Id$ -->
+  <!-- $Id: ivy.xml 4687 2011-11-03 11:40:48Z unsaved $ -->
   <info organisation="hsqldb" module="docbook"/>
   <configurations defaultconf="fop">
     <conf name="xcsdeRngvalJar" transitive="false"

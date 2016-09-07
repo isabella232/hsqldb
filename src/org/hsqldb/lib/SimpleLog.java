@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2014, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -59,10 +59,10 @@ public class SimpleLog {
 
     //
     public static final String   logTypeNameEngine = "ENGINE";
-    public static final String[] appLogTypeNames   = {
+    static final String[] appLogTypeNames   = {
         "", "ERROR ", "NORMAL", "DETAIL"
     };
-    public static final String[] sqlLogTypeNames   = {
+    static final String[] sqlLogTypeNames   = {
         "", "BASIC ", "NORMAL", "DETAIL", "RESULT"
     };
 
@@ -198,7 +198,6 @@ public class SimpleLog {
 
         sb.append(message);
 
-//#ifdef JAVA4
         Throwable           temp     = new Throwable();
         StackTraceElement[] elements = temp.getStackTrace();
 
@@ -216,7 +215,6 @@ public class SimpleLog {
             sb.append(' ').append(elements[0].getMethodName());
         }
 
-//#endif JAVA4
         sb.append(' ').append(t.toString());
         writer.println(sb.toString());
         sb.setLength(0);

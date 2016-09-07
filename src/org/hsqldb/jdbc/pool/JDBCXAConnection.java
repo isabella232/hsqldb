@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,10 +37,10 @@ import javax.transaction.xa.XAResource;
 
 import org.hsqldb.jdbc.JDBCConnection;
 
-// @(#)$Id$
+// @(#)$Id: JDBCXAConnection.java 5527 2016-02-06 12:05:48Z fredt $
 
 /**
- * Subclass of JDBCPooledConnection implements the XAConneciton interface.
+ * Subclass of JDBCPooledConnection implements the XAConnection interface.
  * For use by global transaction service managers.<p>
  *
  * Each instance has an JDBCXAResource inherits the superclass's two

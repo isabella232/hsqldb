@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2011, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +31,8 @@
 
 package org.hsqldb.persist;
 
+import java.io.UnsupportedEncodingException;
+
 import org.hsqldb.Database;
 import org.hsqldb.error.Error;
 import org.hsqldb.error.ErrorCode;
@@ -40,7 +42,7 @@ import org.hsqldb.error.ErrorCode;
  *
  * @author Bob Preston (sqlbob@users dot sourceforge.net)
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.0
+ * @version 2.3.4
  * @since 2.2.6
  */
 public class TextFileSettings {
@@ -50,23 +52,36 @@ public class TextFileSettings {
     public String              fs;
     public String              vs;
     public String              lvs;
+    public String              qc;
+    public char                quoteChar;
     public String              stringEncoding;
     public boolean             isQuoted;
     public boolean             isAllQuoted;
     public boolean             ignoreFirst;
+    public String              charEncoding;
+    public boolean             isUTF8;
+    public boolean             isUTF16;
+    public boolean             hasUTF16BOM;
+    public boolean             isLittleEndian;
+
+    //
+    private static final byte[] BYTES_NL = NL.getBytes();
+    private static final byte[] SP       = new byte[]{ ' ' };
 
     //
     Database database;
     String   dataFileName;
     int      maxCacheRows;
     int      maxCacheBytes;
+    char     singleSeparator = 0;;
+    byte[]   bytesForLineEnd = BYTES_NL;
+    byte[]   bytesForSpace   = SP;
 
     //
-    static final byte[] BYTES_LINE_SEP    = NL.getBytes();
-    static final char   DOUBLE_QUOTE_CHAR = '\"';
-    static final char   BACKSLASH_CHAR    = '\\';
-    static final char   LF_CHAR           = '\n';
-    static final char   CR_CHAR           = '\r';
+    static final char        DOUBLE_QUOTE_CHAR = '\"';
+    static final char        BACKSLASH_CHAR    = '\\';
+    public static final char LF_CHAR           = '\n';
+    public static final char CR_CHAR           = '\r';
 
     /**
      *  The source string for a cached table is evaluated and the parameters
@@ -88,6 +103,7 @@ public class TextFileSettings {
         switch (tableprops.errorCodes.length) {
 
             case 0 :
+
                 // no source file name
                 this.dataFileName = null;
                 break;
@@ -109,6 +125,8 @@ public class TextFileSettings {
         vs  = tableprops.getProperty(HsqlDatabaseProperties.textdb_vs, vs);
         lvs = dbProps.getStringProperty(HsqlDatabaseProperties.textdb_lvs);
         lvs = tableprops.getProperty(HsqlDatabaseProperties.textdb_lvs, lvs);
+        qc  = dbProps.getStringProperty(HsqlDatabaseProperties.textdb_qc);
+        qc  = tableprops.getProperty(HsqlDatabaseProperties.textdb_qc, qc);
 
         if (vs == null) {
             vs = fs;
@@ -121,12 +139,23 @@ public class TextFileSettings {
         fs  = translateSep(fs);
         vs  = translateSep(vs);
         lvs = translateSep(lvs);
+        qc  = translateSep(qc);
 
         if (fs.length() == 0 || vs.length() == 0 || lvs.length() == 0) {
             throw Error.error(ErrorCode.X_S0503);
         }
 
-        //-- Get booleans
+        if (qc.length() != 1) {
+            throw Error.error(ErrorCode.X_S0504);
+        }
+
+        quoteChar = qc.charAt(0);
+
+        if (quoteChar > 0x007F) {
+            throw Error.error(ErrorCode.X_S0504);
+        }
+
+        //-- get booleans
         ignoreFirst =
             dbProps.isPropertyTrue(HsqlDatabaseProperties.textdb_ignore_first);
         ignoreFirst = tableprops.isPropertyTrue(
@@ -141,12 +170,42 @@ public class TextFileSettings {
         isAllQuoted =
             tableprops.isPropertyTrue(HsqlDatabaseProperties.textdb_all_quoted,
                                       isAllQuoted);
+
+        //-- get string
         stringEncoding =
             dbProps.getStringProperty(HsqlDatabaseProperties.textdb_encoding);
         stringEncoding =
             tableprops.getProperty(HsqlDatabaseProperties.textdb_encoding,
                                    stringEncoding);
+        charEncoding = stringEncoding;
 
+        // UTF-8 files can begin with BOM 3-byte sequence
+        // UTF-16 files can begin with BOM 2-byte sequence for big-endian
+        // UTF-16BE files (big-endian) have no BOM
+        // UTF-16LE files (little-endian) have no BOM
+        if ("UTF8".equals(stringEncoding)) {
+            isUTF8 = true;
+        } else if ("UTF-8".equals(stringEncoding)) {
+            isUTF8 = true;
+        } else if ("UTF-16".equals(stringEncoding)) {
+
+            // avoid repeating the BOM in each encoded string
+            charEncoding = "UTF-16BE";
+            isUTF16      = true;
+        } else if ("UTF-16BE".equals(stringEncoding)) {
+            isUTF16 = true;
+        } else if ("UTF-16LE".equals(stringEncoding)) {
+            isUTF16        = true;
+            isLittleEndian = true;
+        }
+
+        setSpaceAndLineEnd();
+
+        if (fs.length() == 1 || (fs.length() == 2 && fs.endsWith("\n"))) {
+            singleSeparator = fs.charAt(0);
+        }
+
+        //
         //-- get size and scale
         int cacheScale = dbProps.getIntegerProperty(
             HsqlDatabaseProperties.textdb_cache_scale);
@@ -189,6 +248,36 @@ public class TextFileSettings {
 
     int getMaxCacheBytes() {
         return maxCacheBytes;
+    }
+
+    /**
+     * for UTF-16 with BOM in file
+     */
+    void setLittleEndianByteOrderMark() {
+
+        if ("UTF-16".equals(stringEncoding)) {
+            charEncoding   = "UTF-16LE";
+            isLittleEndian = true;
+            hasUTF16BOM    = true;
+
+            // normal - BOM is expected
+        } else {
+
+            // abnormal - no BOM allowed - must use "UTF-16" as encoding
+            throw Error.error(ErrorCode.X_S0531);
+        }
+    }
+
+    void setSpaceAndLineEnd() {
+
+        try {
+            if (isUTF16) {
+                bytesForLineEnd = NL.getBytes(charEncoding);
+                bytesForSpace   = " ".getBytes(charEncoding);
+            }
+        } catch (UnsupportedEncodingException e) {
+            throw Error.error(ErrorCode.X_S0531);
+        }
     }
 
     private static String translateSep(String sep) {

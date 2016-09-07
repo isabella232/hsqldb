@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@ import org.hsqldb.types.Types;
  * Parser for SQL stored procedures and functions - PSM
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.4
  * @since 1.9.0
  */
 public class ParserRoutine extends ParserTable {
@@ -227,7 +227,7 @@ public class ParserRoutine extends ParserTable {
         targetSet.toArray(targets);
 
         for (int i = 0; i < targets.length; i++) {
-            this.resolveOuterReferencesAndTypes(rangeGroups, targets[i]);
+            resolveOuterReferencesAndTypes(rangeGroups, targets[i]);
         }
 
         resolveOuterReferencesAndTypes(rangeGroups, expression);
@@ -746,7 +746,7 @@ public class ParserRoutine extends ParserTable {
                     readThis(Tokens.LEVEL);
                     routine.setNewSavepointLevel(false);
 
-                    throw super.unsupportedFeature(Tokens.T_OLD);
+                    throw unsupportedFeature(Tokens.T_OLD);
 
                     // break;
                 }
@@ -797,7 +797,7 @@ public class ParserRoutine extends ParserTable {
 
         read();
         readThis(Tokens.NAME);
-        checkIsValue(Types.SQL_CHAR);
+        checkIsQuotedString();
         routine.setMethodURL((String) token.tokenValue);
         read();
 
@@ -887,15 +887,14 @@ public class ParserRoutine extends ParserTable {
 
     Table readLocalTableVariableDeclarationOrNull(Routine routine) {
 
-        int position = super.getPosition();
+        int position = getPosition();
 
         readThis(Tokens.DECLARE);
 
         if (token.tokenType == Tokens.TABLE) {
             read();
 
-            HsqlName name = super.readNewSchemaObjectName(SchemaObject.TABLE,
-                false);
+            HsqlName name = readNewSchemaObjectName(SchemaObject.TABLE, false);
 
             name.schema = SqlInvariants.MODULE_HSQLNAME;
 
@@ -916,7 +915,7 @@ public class ParserRoutine extends ParserTable {
 
     ColumnSchema[] readLocalVariableDeclarationOrNull() {
 
-        int           position = super.getPosition();
+        int           position = getPosition();
         Type          type;
         HsqlArrayList names = new HsqlArrayList();
 
@@ -1104,7 +1103,7 @@ public class ParserRoutine extends ParserTable {
     String parseSQLStateValue() {
 
         readIfThis(Tokens.VALUE);
-        checkIsValue(Types.SQL_CHAR);
+        checkIsQuotedString();
 
         String sqlState = token.tokenString;
 
@@ -1332,7 +1331,7 @@ public class ParserRoutine extends ParserTable {
                         if (routine.triggerType == TriggerDef.BEFORE
                                 && routine.triggerOperation
                                    != StatementTypes.DELETE_WHERE) {
-                            int position = super.getPosition();
+                            int position = getPosition();
 
                             try {
                                 cs = compileTriggerSetStatement(
@@ -1363,7 +1362,7 @@ public class ParserRoutine extends ParserTable {
                         throw unexpectedToken();
                     }
 
-                    cs = this.compileGetStatement(rangeGroups);
+                    cs = compileGetStatement(rangeGroups);
                     break;
 
                 // control
@@ -1964,7 +1963,7 @@ public class ParserRoutine extends ParserTable {
 
         if (readIfThis(Tokens.SET)) {
             readThis(Tokens.MESSAGE_TEXT);
-            readThis(Tokens.EQUALS);
+            readThis(Tokens.EQUALS_OP);
 
             message = XreadSimpleValueSpecificationOrNull();
 
@@ -1995,7 +1994,7 @@ public class ParserRoutine extends ParserTable {
 
             if (readIfThis(Tokens.SET)) {
                 readThis(Tokens.MESSAGE_TEXT);
-                readThis(Tokens.EQUALS);
+                readThis(Tokens.EQUALS_OP);
 
                 message = XreadSimpleValueSpecificationOrNull();
 

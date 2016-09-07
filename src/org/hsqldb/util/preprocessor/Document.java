@@ -46,7 +46,7 @@ import java.io.UnsupportedEncodingException;
 import java.io.Writer;
 import java.util.Vector;
 
-/* $Id$ */
+/* $Id: Document.java 610 2008-12-22 15:54:18Z unsaved $ */
 
 /**
  * Simple line-oriented text document ADT.

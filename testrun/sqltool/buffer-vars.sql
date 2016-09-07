@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: buffer-vars.sql 5406 2014-10-13 20:53:18Z unsaved $
  */
 
 CREATE TABLE t (i INT, a INT, d DATE);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ import org.hsqldb.result.Result;
  * as lookup key when a session initially looks for an existing instance of
  * the compiled sql statement.<p>
  *
- * Once a session is linked with a statement, it uses the uniqe compiled
+ * Once a session is linked with a statement, it uses the unique compiled
  * statement id for the sql statement to access the statement.<p>
  *
  * Changes to database structure via DDL statements, will result in all
@@ -84,10 +84,10 @@ public final class StatementManager {
     /** Map: Schema id (int) => {Map: SQL String => Compiled Statement id (long)} */
     private IntKeyHashMap schemaMap;
 
-    /** Map: Compiled statment id (int) => CompiledStatement object. */
+    /** Map: Compiled statement id (int) => CompiledStatement object. */
     private LongKeyHashMap csidMap;
 
-    /** Map: Compiled statment id (int) => number of uses of the statement */
+    /** Map: Compiled statement id (int) => number of uses of the statement */
     private LongKeyIntValueHashMap useMap;
 
     /**
@@ -309,7 +309,7 @@ public final class StatementManager {
      * statement. If the statement is not linked with any other session, it is
      * removed from management.
      *
-     * @param csid the compiled statment identifier
+     * @param csid the compiled statement identifier
      */
     synchronized void freeStatement(long csid) {
 
@@ -333,7 +333,7 @@ public final class StatementManager {
             int schemaid = cs.getSchemaName().hashCode();
             LongValueHashMap sqlMap =
                 (LongValueHashMap) schemaMap.get(schemaid);
-            String sql = (String) cs.getSQL();
+            String sql = cs.getSQL();
 
             sqlMap.remove(sql);
         }

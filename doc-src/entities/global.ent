@@ -1,5 +1,5 @@
 <!-- Project-specific entities which should be loaded into every source file -->
-<!-- $Id$ -->
+<!-- $Id: global.ent 4144 2011-03-14 02:08:47Z unsaved $ -->
 
 <!ENTITY % dummy33 PUBLIC
            "-//HSQLDB/ENTITIES/DocSpecificDynamicEntities"

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,7 +75,7 @@ public class ExpressionColumn extends Expression {
                 diagnosticsVariableTokens[i], SchemaObject.VARIABLE);
             Type type = Type.SQL_INTEGER;
 
-            if (diagnosticsVariableTokens[i] == Tokens.T_MORE) {
+            if (Tokens.T_MORE.equals(diagnosticsVariableTokens[i])) {
                 type = Type.SQL_CHAR;
             }
 
@@ -371,7 +371,6 @@ public class ExpressionColumn extends Expression {
 
             case OpTypes.MULTICOLUMN :
                 throw Error.error(ErrorCode.X_42581, "*");
-
             case OpTypes.ROWNUM :
             case OpTypes.DYNAMIC_PARAM :
             case OpTypes.ASTERISK :
@@ -390,8 +389,7 @@ public class ExpressionColumn extends Expression {
             case OpTypes.COLUMN :
             case OpTypes.PARAMETER :
             case OpTypes.VARIABLE : {
-                boolean         resolved       = false;
-                boolean         tableQualified = tableName != null;
+                boolean         resolved      = false;
                 RangeVariable[] rangeVarArray = rangeGroup.getRangeVariables();
 
                 if (rangeVariable != null) {
@@ -444,9 +442,8 @@ public class ExpressionColumn extends Expression {
                         if (Tokens.T_CURRVAL.equals(columnName)
                                 || Tokens.T_PREVVAL.equals(columnName)) {
                             NumberSequence seq =
-                                session.database.schemaManager.getSequence(
-                                    tableName, session.getSchemaName(schema),
-                                    false);
+                                session.database.schemaManager.findSequence(
+                                    session, tableName, schema);
 
                             if (seq != null) {
                                 opType     = OpTypes.SEQUENCE_CURRENT;
@@ -459,9 +456,8 @@ public class ExpressionColumn extends Expression {
                             }
                         } else if (Tokens.T_NEXTVAL.equals(columnName)) {
                             NumberSequence seq =
-                                session.database.schemaManager.getSequence(
-                                    tableName, session.getSchemaName(schema),
-                                    false);
+                                session.database.schemaManager.findSequence(
+                                    session, tableName, schema);
 
                             if (seq != null) {
                                 opType     = OpTypes.SEQUENCE;
@@ -489,7 +485,10 @@ public class ExpressionColumn extends Expression {
                 }
 
                 unresolvedSet.add(this);
+
+                break;
             }
+            default :
         }
 
         return unresolvedSet;
@@ -667,9 +666,8 @@ public class ExpressionColumn extends Expression {
             case OpTypes.COLUMN : {
                 RangeIterator[] iterators =
                     session.sessionContext.rangeIterators;
-                Object value =
-                    iterators[rangeVariable.rangePosition].getCurrent(
-                        columnIndex);
+                Object value = iterators[rangeVariable.rangePosition].getField(
+                    columnIndex);
 
                 if (dataType != column.dataType) {
                     value = dataType.convertToType(session, value,
@@ -681,7 +679,7 @@ public class ExpressionColumn extends Expression {
             case OpTypes.SIMPLE_COLUMN : {
                 Object value =
                     session.sessionContext.rangeIterators[rangePosition]
-                        .getCurrent(columnIndex);
+                        .getField(columnIndex);
 
                 return value;
             }
@@ -1046,7 +1044,7 @@ public class ExpressionColumn extends Expression {
 
                 for (int i = 0; i < length; i++) {
                     if (columns[i] instanceof ExpressionColumn) {
-                        if (this.equals(columns[i])) {
+                        if (equals(columns[i])) {
                             if (matchIndex < 0) {
                                 matchIndex = i;
                             } else if (session.database.sqlEnforceRefs) {

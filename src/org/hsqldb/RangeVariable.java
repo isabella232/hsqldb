@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,6 @@ import org.hsqldb.lib.HsqlList;
 import org.hsqldb.lib.OrderedHashSet;
 import org.hsqldb.lib.OrderedIntHashSet;
 import org.hsqldb.lib.OrderedLongHashSet;
-import org.hsqldb.map.ValuePool;
 import org.hsqldb.navigator.RangeIterator;
 import org.hsqldb.navigator.RowIterator;
 import org.hsqldb.persist.PersistentStore;
@@ -67,6 +66,9 @@ public class RangeVariable {
     public static final int TRANSITION_RANGE = 2;
     public static final int PARAMETER_RANGE  = 3;
     public static final int VARIALBE_RANGE   = 4;
+
+    //
+    private static final RowIterator emptyIterator = new RangeIteratorEmpty();
 
     //
     Table                  rangeTable;
@@ -417,7 +419,7 @@ public class RangeVariable {
     }
 
     /**
-     * Retruns index for column
+     * Returns index for column
      *
      * @param columnName name of column
      * @return int index or -1 if not found
@@ -870,8 +872,6 @@ public class RangeVariable {
 
             if (e == null || e.isTrue() || e.hasReference(ranges, exclude)) {
                 conditionsList.remove(i);
-
-                continue;
             }
         }
 
@@ -945,7 +945,7 @@ public class RangeVariable {
     }
 
     /**
-     * Retreives a String representation of this obejct. <p>
+     * Retrieves a String representation of this obejct. <p>
      *
      * The returned String describes this object's table, alias
      * access mode, index, join mode, Start, End and And conditions.
@@ -1078,10 +1078,8 @@ public class RangeVariable {
 
         Session         session;
         int             rangePosition;
-        RowIterator     it;
+        RowIterator     it = emptyIterator;
         PersistentStore store;
-        Object[]        currentData;
-        Row             currentRow;
         boolean         isBeforeFirst;
         RangeVariable   rangeVar;
 
@@ -1096,7 +1094,7 @@ public class RangeVariable {
             if (isBeforeFirst) {
                 isBeforeFirst = false;
             } else {
-                if (it == null) {
+                if (it == emptyIterator) {
                     return false;
                 }
             }
@@ -1105,44 +1103,35 @@ public class RangeVariable {
                 throw Error.error(ErrorCode.X_40000);
             }
 
-            currentRow = it.getNextRow();
+            if (session.abortAction) {
+                throw Error.error(ErrorCode.X_40502);
+            }
 
-            if (currentRow == null) {
-                return false;
-            } else {
-                currentData = currentRow.getData();
-
+            if (it.next()) {
                 return true;
+            } else {
+                return false;
             }
         }
 
         public Row getCurrentRow() {
-            return currentRow;
+            return it.getCurrentRow();
         }
 
         public Object[] getCurrent() {
-            return currentData;
+            return it.getCurrent();
         }
 
-        public Object getCurrent(int i) {
-            return currentData == null ? null
-                                       : currentData[i];
+        public Object getField(int i) {
+            return it.getField(i);
         }
 
         public void setCurrent(Object[] data) {
-            currentData = data;
+            throw Error.runtimeError(ErrorCode.U_S0500, "RangeVariable");
         }
 
         public long getRowId() {
-
-            return currentRow == null ? 0
-                                      : ((long) rangeVar.rangeTable.getId() << 32)
-                                        + ((long) currentRow.getPos());
-        }
-
-        public Object getRowidObject() {
-            return currentRow == null ? null
-                                      : ValuePool.getLong(getRowId());
+            return ((long) rangeVar.rangeTable.getId() << 32) + it.getRowId();
         }
 
         public void removeCurrent() {}
@@ -1153,8 +1142,7 @@ public class RangeVariable {
                 it.release();
             }
 
-            it            = null;
-            currentRow    = null;
+            it            = emptyIterator;
             isBeforeFirst = true;
         }
 
@@ -1162,19 +1150,7 @@ public class RangeVariable {
             return rangePosition;
         }
 
-        public Row getNextRow() {
-            throw Error.runtimeError(ErrorCode.U_S0500, "RangeVariable");
-        }
-
         public boolean hasNext() {
-            throw Error.runtimeError(ErrorCode.U_S0500, "RangeVariable");
-        }
-
-        public Object[] getNext() {
-            throw Error.runtimeError(ErrorCode.U_S0500, "RangeVariable");
-        }
-
-        public boolean setRowColumns(boolean[] columns) {
             throw Error.runtimeError(ErrorCode.U_S0500, "RangeVariable");
         }
 
@@ -1211,7 +1187,6 @@ public class RangeVariable {
             this.store         = rangeVar.rangeTable.getRowStore(session);
             this.session       = session;
             this.rangeVar      = rangeVar;
-            currentData        = rangeVar.emptyData;
             isBeforeFirst      = true;
             whereConditions    = rangeVar.whereConditions;
             joinConditions     = rangeVar.joinConditions;
@@ -1235,6 +1210,10 @@ public class RangeVariable {
 
             if (session.abortTransaction) {
                 throw Error.error(ErrorCode.X_40000);
+            }
+
+            if (session.abortAction) {
+                throw Error.error(ErrorCode.X_40502);
             }
 
             while (condIndex < conditions.length) {
@@ -1268,9 +1247,7 @@ public class RangeVariable {
                 it.release();
             }
 
-            it            = null;
-            currentData   = rangeVar.emptyData;
-            currentRow    = null;
+            it            = emptyIterator;
             isBeforeFirst = true;
         }
 
@@ -1425,13 +1402,20 @@ public class RangeVariable {
             boolean result = false;
 
             while (true) {
-                currentRow = it.getNextRow();
-
-                if (currentRow == null) {
-                    break;
+                if (session.abortTransaction) {
+                    throw Error.error(ErrorCode.X_40000);
                 }
 
-                currentData = currentRow.getData();
+                if (session.abortAction) {
+                    throw Error.error(ErrorCode.X_40502);
+                }
+
+                if (it.next()) {}
+                else {
+                    it = emptyIterator;
+
+                    break;
+                }
 
                 if (conditions[condIndex].terminalCondition != null) {
                     if (!conditions[condIndex].terminalCondition.testCondition(
@@ -1484,8 +1468,7 @@ public class RangeVariable {
 
             it.release();
 
-            currentRow  = null;
-            currentData = rangeVar.emptyData;
+            it = emptyIterator;
 
             if (hasLeftOuterRow && condIndex == conditions.length - 1) {
                 result =
@@ -1501,7 +1484,9 @@ public class RangeVariable {
         private void addFoundRow() {
 
             if (rangeVar.isRightJoin) {
-                lookup.add(currentRow.getPos());
+                long position = it.getRowId();
+
+                lookup.add(position);
             }
         }
     }
@@ -1531,7 +1516,7 @@ public class RangeVariable {
         public boolean next() {
 
             if (isOnRightOuterRows) {
-                if (it == null) {
+                if (it == emptyIterator) {
                     return false;
                 }
 
@@ -1546,13 +1531,12 @@ public class RangeVariable {
             boolean result = false;
 
             while (true) {
-                currentRow = it.getNextRow();
+                if (it.next()) {}
+                else {
+                    it = emptyIterator;
 
-                if (currentRow == null) {
                     break;
                 }
-
-                currentData = currentRow.getData();
 
                 if (conditions[condIndex].indexEndCondition != null
                         && !conditions[condIndex].indexEndCondition
@@ -1581,19 +1565,15 @@ public class RangeVariable {
 
             it.release();
 
-            currentRow  = null;
-            currentData = rangeVar.emptyData;
-
             return result;
         }
 
         private boolean lookupAndTest() {
 
-            boolean result = !lookup.contains(currentRow.getPos());
+            long    position = it.getRowId();
+            boolean result   = !lookup.contains(position);
 
             if (result) {
-                currentData = currentRow.getData();
-
                 if (conditions[condIndex].nonIndexCondition != null
                         && !conditions[condIndex].nonIndexCondition
                             .testCondition(session)) {
@@ -1609,10 +1589,19 @@ public class RangeVariable {
 
         RangeIteratorMain[] rangeIterators;
         int                 currentIndex = 0;
+        RangeIterator       currentRange = null;
 
         public RangeIteratorJoined(RangeIteratorMain[] rangeIterators) {
             this.rangeIterators = rangeIterators;
             isBeforeFirst       = true;
+        }
+
+        public Row getCurrentRow() {
+            return currentRange.getCurrentRow();
+        }
+
+        public Object[] getCurrent() {
+            return currentRange.getCurrent();
         }
 
         public boolean isBeforeFirst() {
@@ -1622,21 +1611,18 @@ public class RangeVariable {
         public boolean next() {
 
             while (currentIndex >= 0) {
-                RangeIteratorMain it = rangeIterators[currentIndex];
+                currentRange = rangeIterators[currentIndex];
 
-                if (it.next()) {
+                if (currentRange.next()) {
                     if (currentIndex < rangeIterators.length - 1) {
                         currentIndex++;
 
                         continue;
                     }
 
-                    currentRow  = rangeIterators[currentIndex].currentRow;
-                    currentData = currentRow.getData();
-
                     return true;
                 } else {
-                    it.reset();
+                    currentRange.reset();
 
                     currentIndex--;
 
@@ -1644,9 +1630,7 @@ public class RangeVariable {
                 }
             }
 
-            currentData =
-                rangeIterators[rangeIterators.length - 1].rangeVar.emptyData;
-            currentRow = null;
+            currentRange = null;
 
             for (int i = 0; i < rangeIterators.length; i++) {
                 rangeIterators[i].reset();
@@ -1676,6 +1660,100 @@ public class RangeVariable {
                 rangeIterators[i].reset();
             }
         }
+
+        public int getRangePosition() {
+            return 0;
+        }
+    }
+
+    static final class RangeIteratorEmpty implements RowIterator {
+
+        public Object getField(int col) {
+            return null;
+        }
+
+        public boolean next() {
+            return false;
+        }
+
+        public Row getCurrentRow() {
+            return null;
+        }
+
+        public Object[] getCurrent() {
+            return null;
+        }
+
+        public boolean hasNext() {
+            return false;
+        }
+
+        public long getPos() {
+            return -1;
+        }
+
+        public int getStorageSize() {
+            return 0;
+        }
+
+        public void release() {}
+
+        public void removeCurrent() {}
+
+        public long getRowId() {
+            return 0L;
+        }
+    }
+
+    static final class RangeIteratorCheck implements RangeIterator {
+
+        Object[] currentData;
+
+        public Object getField(int col) {
+            return currentData[col];
+        }
+
+        public boolean next() {
+            return false;
+        }
+
+        public Row getCurrentRow() {
+            return null;
+        }
+
+        public Object[] getCurrent() {
+            return currentData;
+        }
+
+        public boolean hasNext() {
+            return false;
+        }
+
+        public long getPos() {
+            return -1;
+        }
+
+        public int getStorageSize() {
+            return 0;
+        }
+
+        public void release() {}
+
+        public void removeCurrent() {}
+
+        public long getRowId() {
+            return 0L;
+        }
+
+        public boolean isBeforeFirst() {
+            return false;
+        }
+
+        public void setCurrent(Object[] data) {
+            this.currentData = data;
+        }
+
+        public void reset() {}
 
         public int getRangePosition() {
             return 0;
@@ -1869,7 +1947,7 @@ public class RangeVariable {
 
         /**
          *
-         * @param exprList list of expressions
+         * @param exprList has the same length as index column count
          * @param index Index to use
          * @param colCount number of columns searched
          */
@@ -1981,6 +2059,14 @@ public class RangeVariable {
 
                     indexEndCondition =
                         ExpressionLogical.andExpressions(indexEndCondition, e);
+                }
+
+                if (indexedColumnCount > 1
+                        && opTypes[indexedColumnCount - 1] == OpTypes.MAX) {
+                    indexedColumnCount--;
+
+                    opTypes[indexedColumnCount]    = 0;
+                    opTypesEnd[indexedColumnCount] = 0;
                 }
 
                 opType    = opTypes[indexedColumnCount - 1];

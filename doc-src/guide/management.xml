@@ -24,7 +24,7 @@
       </author>
     </authorgroup>
 
-    <releaseinfo>$Revision$</releaseinfo>
+    <releaseinfo>$Revision: 5579 $</releaseinfo>
 
     <pubdate>&timestamp;</pubdate>
 
@@ -37,7 +37,7 @@
     </keywordset>
 
     <legalnotice>
-      <para>Copyright 2002-2015 Fred Toussi. Permission is granted to
+      <para>Copyright 2002-2016 Fred Toussi. Permission is granted to
       distribute this document without any alteration under the terms of the
       HSQLDB license. Additional permission is granted to the HSQL Development
       Group to distribute this document with or without alterations under the
@@ -298,11 +298,10 @@
   <section xml:id="mtc_acid_persistence">
     <title>ACID, Persistence and Reliability</title>
 
-    <para>HyperSQL 2.0 uses the persistence mechanism used in version 1.8,
-    with important enhancements. The code has proven reliable, as the last
+    <para>HyperSQL's persistence mechanism has proven reliable, as the last
     critical issue was fixed 2 years before the release of version 2.0.</para>
 
-    <para>There are further enhancements in version 2.3.3</para>
+    <para>There are further enhancements in version 2.3.4</para>
 
     <itemizedlist>
       <listitem>
@@ -344,8 +343,8 @@
     recommended for Sun JVM's. This does not apply to other JVM's. In such
     environments, it is therefore recommended to test the CHECKPOINT DEFRAG
     operation and the shutting down and restarting the database inside the
-    same Java process extensively with NIO. Use of NIO can be turned off if
-    necessary.</para>
+    same Java process extensively with NIO. Use of NIO is not essential and
+    can be turned off if necessary.</para>
 
     <section xml:id="mtc_acid">
       <title>Atomicity, Consistency, Isolation, Durability</title>
@@ -409,7 +408,7 @@
       is to reduce the total size of database files and to allow a quick
       restart in case the database is closed without a proper shutdown. The
       <literal>CHECKPOINT DEFRAG</literal> variant compacts the
-      <literal>.data</literal> file in a similar but way as <literal>SHUTDOWN
+      <literal>.data</literal> file in a similar way to <literal>SHUTDOWN
       COMPACT</literal> does. Obviously this variant takes much longer than a
       normal <literal>CHECKPOINT</literal>. A database setting allows a
       <literal>CHECKPOINT DEFRAG</literal> to be performed automatically when
@@ -425,7 +424,7 @@
   </section>
 
   <section xml:id="mtc_backup">
-    <title>Backing Up Database Catalogs</title>
+    <title>Backing Up and Restoring Database Catalogs</title>
 
     <indexterm significance="preferred">
       <primary>backup</primary>
@@ -486,6 +485,18 @@
       <simpara>See the next section under Statements for details about the
       command and its options. See the sections below about restoring a
       backup.</simpara>
+    </section>
+
+    <section xml:id="mtc_backup_syntax">
+      <title>Offline Backup Utility Syntax</title>
+
+      <para>The <classname>DbBackup</classname> class is used from the
+      command-line to make offline backups and to restore backups. Here is how
+      to see all options for <classname>DbBackup</classname>. <example>
+          <title>Displaying DbBackup Syntax</title>
+
+          <screen> java -cp hsqldb.jar org.hsqldb.lib.tar.DbBackupMain</screen>
+        </example></para>
     </section>
 
     <section xml:id="mtc_offline_backup">
@@ -1273,24 +1284,24 @@
       statement.</simpara>
 
       <indexterm significance="preferred" type="sql">
-        <primary>SET DATABASE UNIQUE NAME</primary>
+        <primary>SET DATABASE TEXT TABLE DEFAULTS</primary>
       </indexterm>
 
-      <simpara><emphasis role="bold">SET DATABASE UNIQUE
-      NAME</emphasis></simpara>
+      <simpara><emphasis role="bold">SET DATABASE TEXT TABLE
+      DEFAULTS</emphasis></simpara>
 
-      <simpara><emphasis>set database unique name</emphasis><literal>
-      </literal></simpara>
+      <simpara><emphasis>set database text table defaults
+      statement</emphasis></simpara>
 
-      <simpara><literal>&lt;set database unique name statement&gt; ::= SET
-      DATABASE UNIQUE NAME &lt;identifier&gt;</literal></simpara>
+      <simpara><literal>&lt;set database text table defaults statement&gt; ::=
+      SET DATABASE TEXT TABLE DEFAULTS &lt;character
+      literal&gt;</literal></simpara>
 
-      <simpara>Each HyperSQL catalog (database) has an engine-generated
-      internal name. This name is a 16 character long string, beginning with
-      HSQLDB and based on the time of creation of the database. The name is
-      used for the log events that are sent to external logging frameworks.
-      The new name must be exactly 16 characters long with no
-      spaces.</simpara>
+      <simpara>An optional property to override default text table settings.
+      The string literal has the same format as the string used for setting
+      the data source of a text table, but without the file name. See the
+      <link endterm="texttables-title" xlink:href="#texttables-chapt"></link>
+      chapter.</simpara>
 
       <simpara>Only a user with the DBA role can execute this
       statement.</simpara>
@@ -1376,29 +1387,29 @@
       <literal>hsqldb.tx_level</literal>.</simpara>
 
       <indexterm significance="preferred" type="sql">
-        <primary>SET DATABASE TEXT TABLE DEFAULTS</primary>
+        <primary>SET DATABASE UNIQUE NAME</primary>
       </indexterm>
 
-      <simpara><emphasis role="bold">SET DATABASE TEXT TABLE
-      DEFAULTS</emphasis></simpara>
+      <simpara><emphasis role="bold">SET DATABASE UNIQUE
+      NAME</emphasis></simpara>
 
-      <simpara><emphasis>set database text table defaults
-      statement</emphasis></simpara>
+      <simpara><emphasis>set database unique name</emphasis><literal>
+      </literal></simpara>
 
-      <simpara><literal>&lt;set database text table defaults statement&gt; ::=
-      SET DATABASE TEXT TABLE DEFAULTS &lt;character
-      literal&gt;</literal></simpara>
+      <simpara><literal>&lt;set database unique name statement&gt; ::= SET
+      DATABASE UNIQUE NAME &lt;identifier&gt;</literal></simpara>
 
-      <simpara>An optional property to override default text table settings.
-      The string literal has the same format as the string used for setting
-      the data source of a text table, but without the file name. See the
-      <link endterm="texttables-title" xlink:href="#texttables-chapt"></link>
-      chapter.</simpara>
+      <simpara>Each HyperSQL catalog (database) has an engine-generated
+      internal name. This name is a 16 character long string, beginning with
+      HSQLDB and based on the time of creation of the database. The name is
+      used for the log events that are sent to external logging frameworks.
+      The new name must be exactly 16 characters long with no
+      spaces.</simpara>
 
       <simpara>Only a user with the DBA role can execute this
       statement.</simpara>
     </section>
-
+	
     <section xml:id="mtc_sql_settings">
       <title>SQL Conformance Settings</title>
 
@@ -1663,6 +1674,40 @@
       <literal>jdbc.translate_tti_types</literal>.</simpara>
 
       <indexterm significance="preferred" type="sql">
+        <primary>SET DATABASE SQL CHARACTER LITERAL</primary>
+      </indexterm>
+
+      <simpara><emphasis role="bold">SET DATABASE SQL CHARACTER
+      LITERAL</emphasis></simpara>
+
+      <simpara><emphasis>set database sql character
+      literal</emphasis></simpara>
+
+      <simpara><literal>&lt;set database sql character literal statement&gt;
+      ::= SET DATABASE SQL CHARACTER LITERAL { TRUE | FALSE
+      }</literal></simpara>
+
+      <simpara>When the property is <literal>TRUE</literal>, the data type of
+      character literal strings is <literal>CHARACTER</literal>. When the
+      property is <literal>FALSE</literal> the data type is
+      <literal>VARCHAR</literal>.</simpara>
+
+      <simpara>Setting this property <literal>FALSE</literal> results in
+      strings not padded with spaces in <literal>CASE WHEN</literal>
+      expressions that have multiple literal alternatives.</simpara>
+
+      <simpara>SQL Standard requires the <literal>CHARACTER</literal>
+      type.</simpara>
+
+      <simpara>The property is <literal>TRUE</literal> by default.</simpara>
+
+      <simpara>Only a user with the DBA role can execute this
+      statement.</simpara>
+
+      <simpara>This is equivalent to the connection property
+      <literal>sql.char_literal</literal>.</simpara>
+
+      <indexterm significance="preferred" type="sql">
         <primary>SET DATABASE SQL CONCAT NULLS</primary>
       </indexterm>
 
@@ -1683,7 +1728,7 @@
       <simpara>Setting this property <literal>FALSE</literal> results in
       concatenation behaviour similar to Oracle or MS SQL Server.</simpara>
 
-      <simpara>SQL Standard requires a NULL result..</simpara>
+      <simpara>SQL Standard requires a NULL result.</simpara>
 
       <simpara>The property is <literal>TRUE</literal> by default.</simpara>
 
@@ -1909,6 +1954,29 @@
 
       <simpara>This is equivalent to the connection property
       <literal>sql.ignore_case</literal>.</simpara>
+
+      <indexterm significance="preferred" type="sql">
+        <primary>SET DATABASE LIVE OBJECT</primary>
+      </indexterm>
+
+      <simpara><emphasis role="bold">SET DATABASE SQL LIVE
+      OBJECT</emphasis></simpara>
+
+      <simpara><emphasis>set database sql live object</emphasis></simpara>
+
+      <simpara><literal>&lt;set database sql live object&gt; ::= SET DATABASE
+      SQL LIVE OBJECT { TRUE | FALSE }</literal></simpara>
+
+      <simpara>This property is <literal>FALSE</literal> by default and can
+      only be used in <literal>mem:</literal> databases.</simpara>
+
+      <simpara>When the property is <literal>FALSE</literal>, all java objects
+      stored in a column of type <literal>OTHER</literal> are serialized. When
+      the property is <literal>FALSE</literal>, objects are not serialized at
+      all.</simpara>
+
+      <simpara>This is equivalent to the connection property
+      <literal>sql.live_object</literal>.</simpara>
 
       <indexterm significance="preferred" type="sql">
         <primary>SET DATABASE SQL SYNTAX DB2</primary>
@@ -2218,10 +2286,11 @@
       <literal>.log</literal> file reaching the limit set by <literal>SET
       FILES LOG SIZE m</literal>, or by the user issuing a CHECKPOINT command,
       the amount of space abandoned since the database was opened is checked
-      and if it is larger than the specified percentage, a CHECKPOINT DEFRAG is
-      performed instead of a CHECKPOINT. As the DEFRAG operation uses a lot of 
-      memory and takes a long time with large databases, setting the threshold
-      above zero is suitable for databases that are smaller than 500 MB.</simpara>
+      and if it is larger than the specified percentage, a CHECKPOINT DEFRAG
+      is performed instead of a CHECKPOINT. As the DEFRAG operation uses a lot
+      of memory and takes a long time with large databases, setting the
+      threshold well above zero is suitable for databases that are around than
+      500 MB or more.</simpara>
 
       <simpara>The default is 0, which indicates no DEFRAG. Useful values are
       between 30 to 60.</simpara>

@@ -35,7 +35,7 @@ import java.lang.reflect.Field;
 import java.util.Hashtable;
 import java.util.Locale;
 
-/* $Id$ */
+/* $Id: LineType.java 610 2008-12-22 15:54:18Z unsaved $ */
 
 /**
  * Static methods and constants to decode preprocessor line types.

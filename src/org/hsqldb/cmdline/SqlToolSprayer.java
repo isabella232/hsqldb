@@ -35,7 +35,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Date;
 
-/* $Id$ */
+/* $Id: SqlToolSprayer.java 5337 2014-01-24 19:26:47Z fredt $ */
 
 /**
  * Sql Tool Sprayer.
@@ -52,7 +52,7 @@ import java.util.Date;
  * </UL>
  *
  * @see #main(String[])
- * @version $Revision$, $Date$
+ * @version $Revision: 5337 $, $Date: 2014-01-24 19:26:47 +0000 (Fri, 24 Jan 2014) $
  * @author Blaine Simpson (blaine dot simpson at admc dot com)
  */
 public class SqlToolSprayer {

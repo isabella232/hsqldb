@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ import org.hsqldb.rowio.RowOutputInterface;
  * a server-side row set.
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.5
  * @since 1.9.0
  */
 public class RowSetNavigatorClient extends RowSetNavigator {
@@ -88,7 +88,7 @@ public class RowSetNavigatorClient extends RowSetNavigator {
     }
 
     /**
-     * For communication of small resuls such as BATCHEXECRESPONSE
+     * For communication of small results such as BATCHEXECRESPONSE
      */
     public void setData(Object[][] table) {
         this.table = table;
@@ -151,13 +151,19 @@ public class RowSetNavigatorClient extends RowSetNavigator {
     }
 
     public void clear() {
+
         setData(emptyTable);
+
+        size = 0;
+
         reset();
     }
 
     public void release() {
+
         setData(emptyTable);
         reset();
+
         isClosed = true;
     }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,12 +32,12 @@
 package org.hsqldb;
 
 import org.hsqldb.HsqlNameManager.HsqlName;
-import org.hsqldb.RangeVariable.RangeIteratorBase;
 import org.hsqldb.error.Error;
 import org.hsqldb.error.ErrorCode;
 import org.hsqldb.index.Index;
 import org.hsqldb.lib.ArrayUtil;
 import org.hsqldb.lib.OrderedHashSet;
+import org.hsqldb.navigator.RangeIterator;
 import org.hsqldb.navigator.RowIterator;
 import org.hsqldb.persist.PersistentStore;
 import org.hsqldb.result.Result;
@@ -49,7 +49,7 @@ import org.hsqldb.types.Type;
  * by the constraint.<p>
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.5
  * @since 1.6.0
  */
 public final class Constraint implements SchemaObject {
@@ -68,6 +68,7 @@ public final class Constraint implements SchemaObject {
     // for temp constraints only
     OrderedHashSet mainColSet;
     OrderedHashSet refColSet;
+    boolean        isSimpleIdentityPK;
 
     //
     public static final Constraint[] emptyArray = new Constraint[]{};
@@ -148,6 +149,9 @@ public final class Constraint implements SchemaObject {
             case SchemaObject.ReferentialAction.SET_DEFAULT :
             case SchemaObject.ReferentialAction.SET_NULL :
                 core.hasDeleteAction = true;
+                break;
+
+            default :
         }
 
         switch (core.updateAction) {
@@ -156,6 +160,9 @@ public final class Constraint implements SchemaObject {
             case SchemaObject.ReferentialAction.SET_DEFAULT :
             case SchemaObject.ReferentialAction.SET_NULL :
                 core.hasUpdateAction = true;
+                break;
+
+            default :
         }
     }
 
@@ -204,6 +211,10 @@ public final class Constraint implements SchemaObject {
         copy.rangeVariable      = rangeVariable;
 
         return copy;
+    }
+
+    void setSimpleIdentityPK() {
+        isSimpleIdentityPK = true;
     }
 
     void setColumnsIndexes(Table table) {
@@ -374,6 +385,8 @@ public final class Constraint implements SchemaObject {
 
                 // should not throw as it is already tested OK
                 break;
+
+            default :
         }
 
         return sb.toString();
@@ -702,7 +715,7 @@ public final class Constraint implements SchemaObject {
      *
      * @param session Session
      * @param oldTable reference to the old version of the table
-     * @param newTable referenct to the new version of the table
+     * @param newTable reference to the new version of the table
      * @param colIndex index at which table column is added or removed
      * @param adjust -1, 0, +1 to indicate if column is added or removed
      */
@@ -784,14 +797,12 @@ public final class Constraint implements SchemaObject {
      */
     void checkCheckConstraint(Session session, Table table, Object[] data) {
 
-        RangeIteratorBase it =
+        RangeIterator it =
             session.sessionContext.getCheckIterator(rangeVariable);
 
         it.setCurrent(data);
 
         boolean nomatch = Boolean.FALSE.equals(check.getValue(session));
-
-        it.setCurrent(null);
 
         if (nomatch) {
             String[] info = new String[] {
@@ -926,14 +937,8 @@ public final class Constraint implements SchemaObject {
 
         RowIterator it = table.rowIterator(session);
 
-        while (true) {
-            Row row = it.getNextRow();
-
-            if (row == null) {
-                break;
-            }
-
-            Object[] rowData = row.getData();
+        while (it.next()) {
+            Object[] rowData = it.getCurrent();
 
             checkInsert(session, table, rowData, false);
         }
@@ -969,7 +974,7 @@ public final class Constraint implements SchemaObject {
     private Expression getNewCheckExpression(Session session) {
 
         String    ddl     = check.getSQL();
-        Scanner   scanner = new Scanner(ddl);
+        Scanner   scanner = new Scanner(session, ddl);
         ParserDQL parser  = new ParserDQL(session, scanner, null);
 
         parser.compileContext.setNextRangeVarIndex(0);

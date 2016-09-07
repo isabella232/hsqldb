@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -100,11 +100,6 @@ public class RowStoreAVLHybrid extends RowStoreAVL implements PersistentStore {
 
     public void setMemory(boolean mode) {
         useDisk = !mode;
-    }
-
-    public synchronized int getAccessCount() {
-        return isCached ? cache.getAccessCount()
-                        : 0;
     }
 
     public void set(CachedObject object) {}
@@ -392,8 +387,8 @@ public class RowStoreAVLHybrid extends RowStoreAVL implements PersistentStore {
         ArrayUtil.fillArray(nullsList, false);
         elementCount.set(0);
 
-        while (iterator.hasNext()) {
-            Row row = iterator.getNextRow();
+        while (iterator.next()) {
+            Row row = iterator.getCurrentRow();
             Row newRow = (Row) getNewCachedObject(session, row.getData(),
                                                   false);
 

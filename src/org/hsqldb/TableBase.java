@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@ import org.hsqldb.types.Type;
  * The  base of all HSQLDB table implementations.
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.5
  * @since 1.7.2
  */
 public class TableBase implements Cloneable {
@@ -65,6 +65,7 @@ public class TableBase implements Cloneable {
     public static final int FUNCTION_TABLE    = 11;
     public static final int SYSTEM_TABLE      = 12;
     public static final int CHANGE_SET_TABLE  = 13;
+    public static final int MODULE_TABLE      = 14;
 
     //
     public static final int SCOPE_ROUTINE     = 20;
@@ -90,6 +91,7 @@ public class TableBase implements Cloneable {
     boolean[]     colNotNull;                   // nullability
     Type[]        colTypes;                     // types of columns
     protected int columnCount;
+    boolean[]     emptyColumnCheckList;
 
     //
     int               tableType;
@@ -112,14 +114,15 @@ public class TableBase implements Cloneable {
     public TableBase(Session session, Database database, int scope, int type,
                      Type[] colTypes) {
 
-        tableType        = type;
-        persistenceScope = scope;
-        isSessionBased   = true;
-        persistenceId    = database.persistentStoreCollection.getNextId();
-        this.database    = database;
-        this.colTypes    = colTypes;
-        columnCount      = colTypes.length;
-        indexList        = Index.emptyArray;
+        tableType            = type;
+        persistenceScope     = scope;
+        isSessionBased       = true;
+        persistenceId        = database.persistentStoreCollection.getNextId();
+        this.database        = database;
+        this.colTypes        = colTypes;
+        columnCount          = colTypes.length;
+        indexList            = Index.emptyArray;
+        emptyColumnCheckList = new boolean[columnCount];
 
         createPrimaryIndex(ValuePool.emptyIntArray, Type.emptyArray, null);
     }
@@ -128,14 +131,13 @@ public class TableBase implements Cloneable {
 
         TableBase copy;
 
-
         try {
             copy = (TableBase) super.clone();
         } catch (CloneNotSupportedException ex) {
             throw Error.runtimeError(ErrorCode.U_S0500, "Expression");
         }
 
-        copy.persistenceId    = database.persistentStoreCollection.getNextId();
+        copy.persistenceId = database.persistentStoreCollection.getNextId();
 
         return copy;
     }
@@ -224,6 +226,10 @@ public class TableBase implements Cloneable {
         return new boolean[getColumnCount()];
     }
 
+    public final boolean[] getEmptyColumnCheckList() {
+        return emptyColumnCheckList;
+    }
+
     /**
      *  Returns the count of all visible columns.
      */
@@ -248,7 +254,7 @@ public class TableBase implements Cloneable {
 
     /**
      * This method is called whenever there is a change to table structure and
-     * serves two porposes: (a) to reset the best set of columns that identify
+     * serves two purposes: (a) to reset the best set of columns that identify
      * the rows of the table (b) to reset the best index that can be used
      * to find rows of the table given a column value.
      *
@@ -430,7 +436,7 @@ public class TableBase implements Cloneable {
     public void dropIndex(Session session, int todrop) {
 
         Index[] list = (Index[]) ArrayUtil.toAdjustedArray(indexList, null,
-                todrop, -1);
+            todrop, -1);
 
         for (int i = 0; i < list.length; i++) {
             list[i].setPosition(i);
@@ -505,7 +511,7 @@ public class TableBase implements Cloneable {
             case TableBase.INFO_SCHEMA_TABLE :
             case TableBase.TEMP_TABLE : {
 
-                // session may be an unregisterd sys session
+                // session may be an unregistered sys session
                 session.sessionData.persistentStoreCollection
                     .resetAccessorKeys(session, (Table) this, indexes);
 

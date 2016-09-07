@@ -33,7 +33,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-# $Id$
+# $Id: hsqldb.init 4993 2012-05-28 03:37:23Z unsaved $
 
 # UNIX init script for HSQLDB.
 

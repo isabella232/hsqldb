@@ -1,5 +1,5 @@
 /*
-     $Id$
+     $Id: StartupParameters.plist 59 2007-04-17 01:08:09Z unsaved $
      Startup Item parameter file that works on at least one Mac OS X system.
 
      I don't know which of the "Uses" services are available on all Mac's.

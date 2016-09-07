@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,6 @@ import org.hsqldb.error.Error;
 import org.hsqldb.error.ErrorCode;
 import org.hsqldb.index.Index;
 import org.hsqldb.lib.HsqlList;
-import org.hsqldb.lib.OrderedHashSet;
 import org.hsqldb.lib.OrderedIntHashSet;
 import org.hsqldb.navigator.RowIterator;
 import org.hsqldb.persist.PersistentStore;
@@ -49,7 +48,7 @@ import org.hsqldb.types.Types;
 /**
  * @author Campbell Burnet (boucherb@users dot sourceforge.net)
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.2.9
+ * @version 2.3.5
  * @since 1.9.0
  */
 public class ExpressionLogical extends Expression {
@@ -142,7 +141,13 @@ public class ExpressionLogical extends Expression {
 
             // fall through
             case OpTypes.NOT_EQUAL :
-            case OpTypes.OVERLAPS :
+            case OpTypes.RANGE_CONTAINS :
+            case OpTypes.RANGE_EQUALS :
+            case OpTypes.RANGE_OVERLAPS :
+            case OpTypes.RANGE_IMMEDIATELY_PRECEDES :
+            case OpTypes.RANGE_IMMEDIATELY_SUCCEEDS :
+            case OpTypes.RANGE_PRECEDES :
+            case OpTypes.RANGE_SUCCEEDS :
             case OpTypes.NOT_DISTINCT :
             case OpTypes.IN :
             case OpTypes.MATCH_SIMPLE :
@@ -255,6 +260,8 @@ public class ExpressionLogical extends Expression {
                         isSingleColumnEqual = true;
                     }
                     break;
+
+                default :
             }
         } else if (nodes[RIGHT].opType == OpTypes.COLUMN) {
             nodes[RIGHT].nullability = SchemaObject.Nullability.NO_NULLS;
@@ -271,6 +278,8 @@ public class ExpressionLogical extends Expression {
                         isSingleColumnEqual = true;
                     }
                     break;
+
+                default :
             }
         }
     }
@@ -601,8 +610,24 @@ public class ExpressionLogical extends Expression {
                 sb.append(Tokens.T_EXISTS);
                 break;
 
-            case OpTypes.OVERLAPS :
+            case OpTypes.RANGE_CONTAINS :
+                sb.append(Tokens.T_CONTAINS);
+                break;
+
+            case OpTypes.RANGE_EQUALS :
+                sb.append(Tokens.T_EQUALS);
+                break;
+
+            case OpTypes.RANGE_OVERLAPS :
                 sb.append(Tokens.T_OVERLAPS);
+                break;
+
+            case OpTypes.RANGE_PRECEDES :
+                sb.append(Tokens.T_PRECEDES);
+                break;
+
+            case OpTypes.RANGE_SUCCEEDS :
+                sb.append(Tokens.T_SUCCEEDS);
                 break;
 
             default :
@@ -808,8 +833,14 @@ public class ExpressionLogical extends Expression {
 
                 break;
             }
-            case OpTypes.OVERLAPS :
-                resolveTypesForOverlaps();
+            case OpTypes.RANGE_CONTAINS :
+            case OpTypes.RANGE_EQUALS :
+            case OpTypes.RANGE_OVERLAPS :
+            case OpTypes.RANGE_IMMEDIATELY_PRECEDES :
+            case OpTypes.RANGE_IMMEDIATELY_SUCCEEDS :
+            case OpTypes.RANGE_PRECEDES :
+            case OpTypes.RANGE_SUCCEEDS :
+                resolveTypesForPeriodPredicates(session);
                 break;
 
             case OpTypes.IN :
@@ -903,8 +934,7 @@ public class ExpressionLogical extends Expression {
 
             if (!nodes[LEFT].dataType.canCompareDirect(
                     nodes[RIGHT].dataType)) {
-                if (convertDateTimeLiteral(session, nodes[LEFT],
-                                           nodes[RIGHT])) {
+                if (convertDateTime(session)) {
 
                     // compatibility for BIT with number and BOOLEAN - convert bit to other type
                 } else if (nodes[LEFT].dataType.isBitType()
@@ -954,6 +984,10 @@ public class ExpressionLogical extends Expression {
                             ^ nodes[RIGHT].dataType.isDateTimeTypeWithZone()) {
                         nodes[LEFT] = new ExpressionOp(nodes[LEFT]);
                     }
+                } else if (nodes[LEFT].dataType.canConvertFrom(
+                        nodes[RIGHT].dataType)) {
+                    nodes[RIGHT] = ExpressionOp.getCastExpression(session,
+                            nodes[RIGHT], nodes[LEFT].dataType);
                 } else {
                     throw Error.error(ErrorCode.X_42562);
                 }
@@ -1063,46 +1097,68 @@ public class ExpressionLogical extends Expression {
      * for compatibility, convert a datetime character string to a datetime
      * value for comparison
      */
-    private boolean convertDateTimeLiteral(Session session, Expression a,
-                                           Expression b) {
+    private boolean convertDateTime(Session session) {
 
-        if (a.dataType.isDateTimeType()) {
+        int a = LEFT;
+        int b = RIGHT;
+
+        if (nodes[a].dataType.isDateTimeType()) {
 
             //
-        } else if (b.dataType.isDateTimeType()) {
-            Expression c = a;
-
-            a = b;
-            b = c;
+        } else if (nodes[b].dataType.isDateTimeType()) {
+            a = RIGHT;
+            b = LEFT;
         } else {
             return false;
         }
 
-        if (a.dataType.isDateTimeTypeWithZone()) {
+        if (nodes[a].dataType.isDateTimeTypeWithZone()) {
             return false;
         }
 
-        if (b.opType == OpTypes.VALUE && b.dataType.isCharacterType()) {
-            try {
-                b.valueData = a.dataType.castToType(session, b.valueData,
-                                                    b.dataType);
-                b.dataType = a.dataType;
-            } catch (HsqlException e) {
-                if (a.dataType == Type.SQL_DATE) {
-                    b.valueData = Type.SQL_TIMESTAMP.castToType(session,
-                            b.valueData, b.dataType);
-                    b.dataType = Type.SQL_TIMESTAMP;
+        if (nodes[b].dataType.isCharacterType()) {
+            if (nodes[b].opType == OpTypes.VALUE) {
+                try {
+                    nodes[b].valueData = nodes[a].dataType.castToType(session,
+                            nodes[b].valueData, nodes[b].dataType);
+                    nodes[b].dataType = nodes[a].dataType;
+                } catch (HsqlException e) {
+                    if (nodes[a].dataType == Type.SQL_DATE) {
+                        nodes[b].valueData =
+                            Type.SQL_TIMESTAMP.castToType(session,
+                                                          nodes[b].valueData,
+                                                          nodes[b].dataType);
+                        nodes[b].dataType = Type.SQL_TIMESTAMP;
+                    }
                 }
-            }
 
-            return true;
+                return true;
+            } else {
+                nodes[b] = new ExpressionOp(nodes[b], nodes[a].dataType);
+
+                nodes[b].resolveTypes(session, this);
+
+                return true;
+            }
         }
 
         return false;
     }
 
-    void resolveTypesForOverlaps() {
+    void resolveTypesForPeriodPredicates(Session session) {
 
+        // convert CONTAINS right part if necessary
+        if (nodes[RIGHT].nodes.length == 0) {
+            Expression[] newNodes = new Expression[] {
+                nodes[RIGHT], new ExpressionValue(null, nodes[RIGHT].dataType)
+            };
+
+            nodes[RIGHT] = new Expression(OpTypes.ROW, newNodes);
+
+            nodes[RIGHT].resolveTypes(session, null);
+        }
+
+        // end convert
         if (nodes[LEFT].nodes[0].isUnresolvedParam()) {
             nodes[LEFT].nodes[0].dataType = nodes[RIGHT].nodes[0].dataType;
         }
@@ -1124,16 +1180,13 @@ public class ExpressionLogical extends Expression {
             nodes[RIGHT].nodes[1].dataType = nodes[LEFT].nodes[0].dataType;
         }
 
-        if (!DTIType
-                .isValidDatetimeRange(nodes[LEFT].nodes[0]
-                    .dataType, nodes[LEFT].nodes[1].dataType) || !DTIType
-                        .isValidDatetimeRange(nodes[RIGHT].nodes[0]
-                            .dataType, nodes[RIGHT].nodes[1].dataType)) {
+        if (!DTIType.isValidDatetimeRange(nodes[LEFT].nodes[0].dataType,
+                                          nodes[LEFT].nodes[1].dataType)) {
             throw Error.error(ErrorCode.X_42563);
         }
 
-        if (!DTIType.isValidDatetimeRange(nodes[LEFT].nodes[0].dataType,
-                                          nodes[LEFT].nodes[1].dataType)) {
+        if (!DTIType.isValidDatetimeRange(nodes[RIGHT].nodes[0].dataType,
+                                          nodes[RIGHT].nodes[1].dataType)) {
             throw Error.error(ErrorCode.X_42563);
         }
 
@@ -1207,7 +1260,7 @@ public class ExpressionLogical extends Expression {
             case OpTypes.SIMPLE_COLUMN : {
                 Object value =
                     session.sessionContext.rangeIterators[rangePosition]
-                        .getCurrent(columnIndex);
+                        .getField(columnIndex);
 
                 return value;
             }
@@ -1243,11 +1296,69 @@ public class ExpressionLogical extends Expression {
                 return nodes[LEFT].getValue(session) == null ? Boolean.TRUE
                                                              : Boolean.FALSE;
             }
-            case OpTypes.OVERLAPS : {
+            case OpTypes.RANGE_CONTAINS : {
+                Object[] left  = nodes[LEFT].getRowValue(session);
+                Object[] right = nodes[RIGHT].getRowValue(session);
+                boolean pointOfTime = nodes[RIGHT].exprSubType
+                                      != OpTypes.RANGE_EQUALS;
+
+                return DateTimeType.contains(session, left,
+                                             nodes[LEFT].nodeDataTypes, right,
+                                             nodes[RIGHT].nodeDataTypes,
+                                             pointOfTime);
+            }
+            case OpTypes.RANGE_EQUALS : {
                 Object[] left  = nodes[LEFT].getRowValue(session);
                 Object[] right = nodes[RIGHT].getRowValue(session);
 
-                return DateTimeType.overlaps(session, left,
+                return DateTimeType.equals(session, left,
+                                           nodes[LEFT].nodeDataTypes, right,
+                                           nodes[RIGHT].nodeDataTypes);
+            }
+            case OpTypes.RANGE_OVERLAPS : {
+                Object[] left  = nodes[LEFT].getRowValue(session);
+                Object[] right = nodes[RIGHT].getRowValue(session);
+
+                if (nodes[LEFT].exprSubType == OpTypes.RANGE_EQUALS) {
+                    return DateTimeType.overlaps(session, left,
+                                                 nodes[LEFT].nodeDataTypes,
+                                                 right,
+                                                 nodes[RIGHT].nodeDataTypes);
+                } else {
+                    return DateTimeType.overlapsRelaxed(
+                        session, left, nodes[LEFT].nodeDataTypes, right,
+                        nodes[RIGHT].nodeDataTypes);
+                }
+            }
+            case OpTypes.RANGE_PRECEDES : {
+                Object[] left  = nodes[LEFT].getRowValue(session);
+                Object[] right = nodes[RIGHT].getRowValue(session);
+
+                return DateTimeType.precedes(session, left,
+                                             nodes[LEFT].nodeDataTypes, right,
+                                             nodes[RIGHT].nodeDataTypes);
+            }
+            case OpTypes.RANGE_IMMEDIATELY_PRECEDES : {
+                Object[] left  = nodes[LEFT].getRowValue(session);
+                Object[] right = nodes[RIGHT].getRowValue(session);
+
+                return DateTimeType.immediatelyPrecedes(session, left,
+                        nodes[LEFT].nodeDataTypes, right,
+                        nodes[RIGHT].nodeDataTypes);
+            }
+            case OpTypes.RANGE_IMMEDIATELY_SUCCEEDS : {
+                Object[] left  = nodes[LEFT].getRowValue(session);
+                Object[] right = nodes[RIGHT].getRowValue(session);
+
+                return DateTimeType.immediatelySucceeds(session, left,
+                        nodes[LEFT].nodeDataTypes, right,
+                        nodes[RIGHT].nodeDataTypes);
+            }
+            case OpTypes.RANGE_SUCCEEDS : {
+                Object[] left  = nodes[LEFT].getRowValue(session);
+                Object[] right = nodes[RIGHT].getRowValue(session);
+
+                return DateTimeType.succeeds(session, left,
                                              nodes[LEFT].nodeDataTypes, right,
                                              nodes[RIGHT].nodeDataTypes);
             }
@@ -1337,7 +1448,7 @@ public class ExpressionLogical extends Expression {
 
                 if (nodes[LEFT].dataType != null
                         && nodes[LEFT].dataType.isArrayType()) {
-                    return compareValues(session, (Object) o1, (Object) o2);
+                    return compareValues(session, o1, o2);
                 }
 
                 if (o1 instanceof Object[]) {
@@ -1413,18 +1524,15 @@ public class ExpressionLogical extends Expression {
      * For MATCH SIMPLE and FULL expressions, nulls in left are handled
      * prior to calling this method
      */
-    private Boolean compareValues(Session session, Object[] left,
-                                  Object[] right) {
+    private Boolean compareValues(Session session, Object[] leftList,
+                                  Object[] rightList) {
 
         int     result  = 0;
         boolean hasNull = false;
 
-        if (left == null || right == null) {
+        if (leftList == null || rightList == null) {
             return null;
         }
-
-        Object[] leftList  = (Object[]) left;
-        Object[] rightList = (Object[]) right;
 
         for (int i = 0; i < nodes[LEFT].nodes.length; i++) {
             if (leftList[i] == null) {
@@ -1625,6 +1733,9 @@ public class ExpressionLogical extends Expression {
                             }
 
                             hasMatch = true;
+                            break;
+
+                        default :
                     }
                 }
 
@@ -1646,8 +1757,8 @@ public class ExpressionLogical extends Expression {
                     RowIterator it =
                         nodes[RIGHT].getTable().rowIterator(session);
 
-                    while (it.hasNext()) {
-                        Object[] rowData = it.getNextRow().getData();
+                    while (it.next()) {
+                        Object[] rowData = it.getCurrent();
                         Boolean result = compareValues(session, data, rowData);
 
                         if (result == null) {
@@ -1671,10 +1782,10 @@ public class ExpressionLogical extends Expression {
                                     : Boolean.FALSE;
                 }
 
-                RowIterator it =
-                    nodes[RIGHT].getTable().getPrimaryIndex().findFirstRow(
-                        session, store, data);
-                boolean result = it.hasNext();
+                // now nulls == 0;
+                RowIterator it = nodes[RIGHT].getTable().getFullIndex(
+                    session).findFirstRow(session, store, data);
+                boolean result = it.next();
 
                 if (!result) {
                     return Boolean.FALSE;
@@ -1688,21 +1799,23 @@ public class ExpressionLogical extends Expression {
                         return Boolean.TRUE;
                 }
 
-                it.getNextRow();
+                // only one match allowed for MATCH UNIQUE xxxx
+                while (true) {
+                    result = it.next();
 
-                result = it.hasNext();
+                    if (!result) {
+                        break;
+                    }
 
-                if (!result) {
-                    return Boolean.TRUE;
+                    Object[] rowData = it.getCurrent();
+
+                    if (Boolean.TRUE.equals(compareValues(session, data,
+                                                          rowData))) {
+                        return Boolean.FALSE;
+                    }
                 }
 
-                Object[] rowData = it.getNextRow().getData();
-                Boolean returnValue =
-                    Boolean.TRUE.equals(compareValues(session, data, rowData))
-                    ? Boolean.FALSE
-                    : Boolean.TRUE;
-
-                return returnValue;
+                return Boolean.TRUE;
             }
             default : {
                 throw Error.runtimeError(ErrorCode.U_S0500,
@@ -1721,7 +1834,7 @@ public class ExpressionLogical extends Expression {
 
     private Boolean testAllAnyCondition(Session session) {
 
-        Object[]     rowData = (Object[]) nodes[LEFT].getRowValue(session);
+        Object[]     rowData = nodes[LEFT].getRowValue(session);
         TableDerived td      = nodes[RIGHT].table;
 
         td.materialiseCorrelated(session);
@@ -1739,8 +1852,6 @@ public class ExpressionLogical extends Expression {
         Index           index = table.getFullIndex(session);
         RowIterator     it;
         PersistentStore store = table.getRowStore(session);
-        Row             firstrow;
-        Row             lastrow;
         Object[]        firstdata;
         Object[]        lastdata;
         boolean         hasNullValue = false;
@@ -1766,7 +1877,7 @@ public class ExpressionLogical extends Expression {
                 if (opType == OpTypes.EQUAL) {
                     it = index.findFirstRow(session, store, data);
 
-                    if (it.hasNext()) {
+                    if (it.next()) {
                         return Boolean.TRUE;
                     } else {
                         if (hasNullValue) {
@@ -1783,15 +1894,17 @@ public class ExpressionLogical extends Expression {
                     it = index.findFirstRowNotNull(session, store);
                 }
 
-                firstrow = it.getNextRow();
-
-                if (firstrow == null) {
+                if (!it.next()) {
                     return null;
                 }
 
-                firstdata = firstrow.getData();
-                lastrow = index.lastRow(session, store, 0, null).getNextRow();
-                lastdata  = lastrow.getData();
+                firstdata = it.getCurrent();
+
+                RowIterator lastIt = index.lastRow(session, store, 0, null);
+
+                lastIt.next();
+
+                lastdata = lastIt.getCurrent();
 
                 Boolean comparefirst = compareValues(session, data, firstdata);
                 Boolean comparelast  = compareValues(session, data, lastdata);
@@ -1835,9 +1948,11 @@ public class ExpressionLogical extends Expression {
                     return null;
                 }
 
-                it        = index.firstRow(session, store, 0, null);
-                firstrow  = it.getNextRow();
-                firstdata = firstrow.getData();
+                it = index.firstRow(session, store, 0, null);
+
+                it.next();
+
+                firstdata = it.getCurrent();
 
                 if (countNulls(firstdata) == data.length) {
                     return null;
@@ -1849,7 +1964,7 @@ public class ExpressionLogical extends Expression {
                 it = index.findFirstRow(session, store, data);
 
                 if (opType == OpTypes.EQUAL) {
-                    if (it.hasNext()) {
+                    if (it.next()) {
                         return store.elementCount(session) == 1 ? Boolean.TRUE
                                                                 : Boolean
                                                                 .FALSE;
@@ -1859,12 +1974,15 @@ public class ExpressionLogical extends Expression {
                 }
 
                 if (opType == OpTypes.NOT_EQUAL) {
-                    return it.hasNext() ? Boolean.FALSE
-                                        : Boolean.TRUE;
+                    return it.next() ? Boolean.FALSE
+                                     : Boolean.TRUE;
                 }
 
-                lastrow  = index.lastRow(session, store, 0, null).getNextRow();
-                lastdata = lastrow.getData();
+                RowIterator lastIt = index.lastRow(session, store, 0, null);
+
+                lastIt.next();
+
+                lastdata = lastIt.getCurrent();
 
                 Boolean comparefirst = compareValues(session, data, firstdata);
                 Boolean comparelast  = compareValues(session, data, lastdata);
@@ -2243,7 +2361,13 @@ public class ExpressionLogical extends Expression {
                 return nodes[LEFT].costFactor(session, rangeVar, opType)
                        + nodes[RIGHT].costFactor(session, rangeVar, opType);
             }
-            case OpTypes.OVERLAPS :
+            case OpTypes.RANGE_CONTAINS :
+            case OpTypes.RANGE_EQUALS :
+            case OpTypes.RANGE_OVERLAPS :
+            case OpTypes.RANGE_IMMEDIATELY_PRECEDES :
+            case OpTypes.RANGE_IMMEDIATELY_SUCCEEDS :
+            case OpTypes.RANGE_PRECEDES :
+            case OpTypes.RANGE_SUCCEEDS :
             case OpTypes.IN :
             case OpTypes.MATCH_SIMPLE :
             case OpTypes.MATCH_PARTIAL :

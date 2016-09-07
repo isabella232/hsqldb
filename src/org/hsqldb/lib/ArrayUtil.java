@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@ import java.lang.reflect.Array;
  * Collection of static methods for operations on arrays
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.5
  * @since 1.7.2
  */
 public class ArrayUtil {
@@ -239,7 +239,7 @@ public class ArrayUtil {
         for (int i = 0; i < array.length; i++) {
             if (array[i] == object) {
 
-                // hadles both nulls
+                // handles both nulls
                 return i;
             }
 
@@ -612,7 +612,7 @@ public class ArrayUtil {
     }
 
     /**
-     * Returns the index of the first occurence of arrb in arra. Or -1 if not found.
+     * Returns the index of the first occurrence of arrb in arra. Or -1 if not found.
      */
     public static int find(byte[] arra, int start, int limit, byte[] arrb) {
 
@@ -642,14 +642,13 @@ public class ArrayUtil {
      * charset byte array.
      */
     public static int findNotIn(byte[] arra, int start, int limit,
-                                byte[] charset) {
+                                byte[] byteSet) {
 
-        int k = 0;
-
-        for (; k < limit; k++) {
-            for (int i = 0; i < charset.length; i++) {
-                if (arra[k] == charset[i]) {
-                    continue;
+        mainloop:
+        for (int k = start; k < limit; k++) {
+            for (int i = 0; i < byteSet.length; i++) {
+                if (arra[k] == byteSet[i]) {
+                    continue mainloop;
                 }
             }
 
@@ -666,9 +665,7 @@ public class ArrayUtil {
     public static int findIn(byte[] arra, int start, int limit,
                              byte[] byteSet) {
 
-        int k = 0;
-
-        for (; k < limit; k++) {
+        for (int k = start; k < limit; k++) {
             for (int i = 0; i < byteSet.length; i++) {
                 if (arra[k] == byteSet[i]) {
                     return k;
@@ -1209,7 +1206,7 @@ public class ArrayUtil {
      *  shifted left or right accordingly when they are copied. If adjust is 0
      *  the addition is copied over the element at colindex.
      *
-     *  No checks are perfomed on array sizes and an exception is thrown
+     *  No checks are performed on array sizes and an exception is thrown
      *  if they are not consistent with the other arguments.
      */
     public static void copyAdjustArray(Object source, Object dest,
@@ -1270,7 +1267,7 @@ public class ArrayUtil {
      * and will be shorter than collar by one element.
      *
      * @param  colarr the source array
-     * @param  colindex index at which to perform adjustement
+     * @param  colindex index at which to perform adjustment
      * @param  adjust +1, 0 or -1
      * @return new, adjusted array
      */
@@ -1461,7 +1458,7 @@ public class ArrayUtil {
     }
 
     /**
-     * Returns true if char agrument is in array.
+     * Returns true if char argument is in array.
      */
     public static boolean isInSortedArray(char ch, char[] array) {
 
@@ -1620,8 +1617,21 @@ public class ArrayUtil {
         return bytes;
     }
 
+    public static long byteSequenceToLong(byte[] bytes, int pos) {
+
+        long val = 0;
+
+        for (int i = 0; i < 8; i++) {
+            long b = bytes[pos + i] & 0xff;
+
+            val += (b << ((7 - i) * 8));
+        }
+
+        return val;
+    }
+
     /**
-     * Compares two arrays. Returns -1, 0, +1. If one array is shorther and
+     * Compares two arrays. Returns -1, 0, +1. If one array is shorter and
      * all the elements are equal to the other's elements, -1 is returned.
      */
     public static int compare(byte[] a, byte[] b) {
@@ -1655,7 +1665,7 @@ public class ArrayUtil {
     }
 
     /**
-     * uses 2**scale form and returns a multipe of this that is larger or equal to value
+     * uses 2**scale form and returns a multiple of this that is larger or equal to value
      */
     public static long getBinaryMultipleCeiling(long value, long unit) {
 
@@ -1669,15 +1679,15 @@ public class ArrayUtil {
     }
 
     /**
-     * uses 2**scale form and returns a multipe of this that is larger or equal to value
+     * uses 2**scale form and returns a multiple of this that is larger or equal to value
      */
     public static long getBinaryNormalisedCeiling(long value, int scale) {
 
-        long mask    = 0xffffffffffffffffl << scale;
+        long mask    = 0xffffffffffffffffL << scale;
         long newSize = value & mask;
 
         if (newSize != value) {
-            newSize += 1 << scale;
+            newSize = newSize + (1L << scale);
         }
 
         return newSize;
@@ -1696,6 +1706,7 @@ public class ArrayUtil {
 
         return newSize;
     }
+
     /**
      * returns true if log2 n is in the range (0, max)
      */
@@ -1746,5 +1757,27 @@ public class ArrayUtil {
         }
 
         return shift;
+    }
+
+    public static int cdiv(int a, int b) {
+
+        int c = a / b;
+
+        if (a % b != 0) {
+            c++;
+        }
+
+        return c;
+    }
+
+    public static long cdiv(long a, long b) {
+
+        long c = a / b;
+
+        if (a % b != 0) {
+            c++;
+        }
+
+        return c;
     }
 }

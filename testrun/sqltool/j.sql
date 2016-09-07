@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: j.sql 4816 2011-11-24 23:15:42Z unsaved $
  *
  * Tests \j command
  */

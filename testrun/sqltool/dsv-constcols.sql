@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: dsv-constcols.sql 5406 2014-10-13 20:53:18Z unsaved $
  *
  * Tests setting column values with *DSV_CONST_COLS
  */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -377,10 +377,6 @@ public class FunctionCustom extends FunctionSQL {
         customRegularFuncMap.put(Tokens.UUID, FUNC_UUID);
         customRegularFuncMap.put(Tokens.WEEK, FUNC_EXTRACT);
         customRegularFuncMap.put(Tokens.YEAR, FUNC_EXTRACT);
-
-        //
-        customRegularFuncMap.put(Tokens.SQLCODE, FUNC_SQLCODE);
-        customRegularFuncMap.put(Tokens.SQLERRM, FUNC_SQLERRM);
     }
     //J+
     static final IntKeyIntValueHashMap customValueFuncMap =
@@ -448,6 +444,8 @@ public class FunctionCustom extends FunctionSQL {
                 case Tokens.RTRIM :
                     function.extractSpec = Tokens.TRAILING;
                     break;
+
+                default :
             }
         }
 
@@ -817,7 +815,7 @@ public class FunctionCustom extends FunctionSQL {
                 return session.getDatabase().getPath();
 
             case FUNC_DATABASE_NAME :
-                return session.getDatabase().getUniqueName();
+                return session.getDatabase().getNameString();
 
             case FUNC_ISAUTOCOMMIT :
                 return session.isAutoCommit() ? Boolean.TRUE
@@ -1360,13 +1358,18 @@ public class FunctionCustom extends FunctionSQL {
                         return null;
                     }
 
-                    if (dataType.isBinaryType()) {
-                        return new BinaryData(
-                            StringConverter.toBinaryUUID((String) data[0]),
-                            false);
-                    } else {
-                        return StringConverter.toStringUUID(
-                            ((BinaryData) data[0]).getBytes());
+                    try {
+                        if (dataType.isBinaryType()) {
+                            byte[] bytes =
+                                StringConverter.toBinaryUUID((String) data[0]);
+
+                            return new BinaryData(bytes, false);
+                        } else {
+                            return StringConverter.toStringUUID(
+                                ((BinaryData) data[0]).getBytes());
+                        }
+                    } catch (NumberFormatException e) {
+                        throw Error.error(ErrorCode.X_22026);
                     }
                 }
             }
@@ -1623,6 +1626,8 @@ public class FunctionCustom extends FunctionSQL {
                         case FUNC_BITXOR :
                             v = a ^ b;
                             break;
+
+                        default :
                     }
 
                     switch (dataType.typeCode) {
@@ -2991,8 +2996,8 @@ public class FunctionCustom extends FunctionSQL {
                     throw Error.error(ErrorCode.X_42561);
                 }
 
-                dataType = isChar ? (Type) Type.SQL_VARCHAR_DEFAULT
-                                  : (Type) Type.SQL_VARBINARY_DEFAULT;
+                dataType = isChar ? Type.SQL_VARCHAR_DEFAULT
+                                  : Type.SQL_VARBINARY_DEFAULT;
 
                 break;
             }
@@ -3105,11 +3110,11 @@ public class FunctionCustom extends FunctionSQL {
                         dataType = Type.SQL_VARCHAR_DEFAULT;
                         break;
 
-                    case FUNC_REGEXP_SUBSTRING_ARRAY : {
+                    case FUNC_REGEXP_SUBSTRING_ARRAY :
                         dataType = Type.getDefaultArrayType(Types.SQL_VARCHAR);
-
                         break;
-                    }
+
+                    default :
                 }
 
                 break;
@@ -3200,12 +3205,11 @@ public class FunctionCustom extends FunctionSQL {
                 }
 
                 if (nodes[0].dataType == null) {
-                    nodes[0].dataType =
-                        ((ArrayType) nodes[1].dataType).collectionBaseType();
+                    nodes[0].dataType = nodes[1].dataType.collectionBaseType();
                 }
 
-                if (!((ArrayType) nodes[1].dataType).collectionBaseType()
-                        .canCompareDirect(nodes[0].dataType)) {
+                if (!nodes[1].dataType.collectionBaseType().canCompareDirect(
+                        nodes[0].dataType)) {
                     throw Error.error(ErrorCode.X_42563);
                 }
 

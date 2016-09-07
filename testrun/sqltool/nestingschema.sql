@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: nestingschema.sql 5406 2014-10-13 20:53:18Z unsaved $
  *
  * Tests a schema creation statement that nests some objects.
  */

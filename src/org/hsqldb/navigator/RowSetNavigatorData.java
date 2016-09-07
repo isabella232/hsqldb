@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,6 @@
 
 package org.hsqldb.navigator;
 
-import java.io.IOException;
 import java.util.Comparator;
 import java.util.TreeMap;
 
@@ -54,7 +53,7 @@ import org.hsqldb.rowio.RowOutputInterface;
  * Implementation of RowSetNavigator for result sets.
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.5
  * @since 1.9.0
  */
 public class RowSetNavigatorData extends RowSetNavigator
@@ -67,7 +66,7 @@ implements Comparator {
     int baseBlockSize;
 
     //
-    Object[][] table = emptyTable;
+    private Object[][] dataTable = emptyTable;
 
     //
     int      visibleColumnCount;
@@ -129,8 +128,8 @@ implements Comparator {
 
         setCapacity(navigator.size);
 
-        while (navigator.hasNext()) {
-            add(navigator.getNext());
+        while (navigator.next()) {
+            add(navigator.getCurrent());
         }
     }
 
@@ -138,7 +137,7 @@ implements Comparator {
 
         mainIndex = fullIndex;
 
-        ArraySort.sort(table, 0, size, this);
+        ArraySort.sort(dataTable, 0, size, this);
         reset();
     }
 
@@ -147,7 +146,7 @@ implements Comparator {
         if (orderIndex != null) {
             mainIndex = orderIndex;
 
-            ArraySort.sort(table, 0, size, this);
+            ArraySort.sort(dataTable, 0, size, this);
         }
 
         reset();
@@ -158,7 +157,7 @@ implements Comparator {
         if (sortAndSlice.index != null) {
             mainIndex = sortAndSlice.index;
 
-            ArraySort.sort(table, 0, size, this);
+            ArraySort.sort(dataTable, 0, size, this);
             reset();
         }
     }
@@ -167,7 +166,7 @@ implements Comparator {
 
         ensureCapacity();
 
-        table[size] = data;
+        dataTable[size] = data;
 
         size++;
 
@@ -183,7 +182,7 @@ implements Comparator {
     }
 
     public boolean addRow(Row row) {
-        throw Error.runtimeError(ErrorCode.U_S0500, "RowSetNavigatorClient");
+        throw Error.runtimeError(ErrorCode.U_S0500, "RowSetNavigatorData");
     }
 
     public void update(Object[] oldData, Object[] newData) {
@@ -225,18 +224,18 @@ implements Comparator {
     void insert(Object[] data) {
 
         ensureCapacity();
-        System.arraycopy(table, currentPos, table, currentPos + 1,
+        System.arraycopy(dataTable, currentPos, dataTable, currentPos + 1,
                          size - currentPos);
 
-        table[currentPos] = data;
+        dataTable[currentPos] = data;
 
         size++;
     }
 
     public void release() {
 
-        this.table = emptyTable;
-        this.size  = 0;
+        this.dataTable = emptyTable;
+        this.size      = 0;
 
         reset();
 
@@ -245,8 +244,8 @@ implements Comparator {
 
     public void clear() {
 
-        this.table = emptyTable;
-        this.size  = 0;
+        this.dataTable = emptyTable;
+        this.size      = 0;
 
         reset();
     }
@@ -261,15 +260,15 @@ implements Comparator {
             return null;
         }
 
-        if (currentPos == currentOffset + table.length) {
-            getBlock(currentOffset + table.length);
+        if (currentPos == currentOffset + dataTable.length) {
+            getBlock(currentOffset + dataTable.length);
         }
 
-        return table[currentPos - currentOffset];
+        return dataTable[currentPos - currentOffset];
     }
 
     public Row getCurrentRow() {
-        throw Error.runtimeError(ErrorCode.U_S0500, "RowSetNavigatorClient");
+        throw Error.runtimeError(ErrorCode.U_S0500, "RowSetNavigatorData");
     }
 
     public Object[] getNextRowData() {
@@ -283,10 +282,10 @@ implements Comparator {
 
     public void removeCurrent() {
 
-        System.arraycopy(table, currentPos + 1, table, currentPos,
+        System.arraycopy(dataTable, currentPos + 1, dataTable, currentPos,
                          size - currentPos - 1);
 
-        table[size - 1] = null;
+        dataTable[size - 1] = null;
 
         currentPos--;
         size--;
@@ -310,8 +309,8 @@ implements Comparator {
         out.writeInt(0);    // offset
         out.writeInt(size);
 
-        while (hasNext()) {
-            Object[] data = getNext();
+        while (next()) {
+            Object[] data = getCurrent();
 
             out.writeData(meta.getExtendedColumnCount(), meta.columnTypes,
                           data, null, null);
@@ -326,8 +325,8 @@ implements Comparator {
 
     public void copy(RowIterator other, int[] rightColumnIndexes) {
 
-        while (other.hasNext()) {
-            Object[] currentData = other.getNext();
+        while (other.next()) {
+            Object[] currentData = other.getCurrent();
 
             addAdjusted(currentData, rightColumnIndexes);
         }
@@ -342,11 +341,11 @@ implements Comparator {
 
         mainIndex = fullIndex;
 
-        while (other.hasNext()) {
-            currentData = other.getNext();
+        while (other.next()) {
+            currentData = other.getCurrent();
 
-            int position = ArraySort.searchFirst(table, 0, size, currentData,
-                                                 this);
+            int position = ArraySort.searchFirst(dataTable, 0, size,
+                                                 currentData, this);
 
             if (position < 0) {
                 position   = -position - 1;
@@ -365,8 +364,8 @@ implements Comparator {
 
         other.reset();
 
-        while (other.hasNext()) {
-            Object[] currentData = other.getNext();
+        while (other.next()) {
+            Object[] currentData = other.getCurrent();
 
             add(currentData);
         }
@@ -379,8 +378,8 @@ implements Comparator {
         removeDuplicates(session);
         other.sortFull(session);
 
-        while (hasNext()) {
-            Object[] currentData = getNext();
+        while (next()) {
+            Object[] currentData = getCurrent();
             boolean  hasRow      = other.containsRow(currentData);
 
             if (!hasRow) {
@@ -402,8 +401,8 @@ implements Comparator {
 
         it = fullIndex.emptyIterator();
 
-        while (hasNext()) {
-            Object[] currentData = getNext();
+        while (next()) {
+            Object[] currentData = getCurrent();
             boolean newGroup =
                 compareData == null
                 || fullIndex.compareRowNonUnique(
@@ -415,13 +414,14 @@ implements Comparator {
                 it          = other.findFirstRow(currentData);
             }
 
-            otherData = it.getNext();
+            if (it.next()) {
+                otherData = it.getCurrent();
 
-            if (otherData != null
-                    && fullIndex.compareRowNonUnique(
+                if (fullIndex.compareRowNonUnique(
                         session, currentData, otherData,
                         visibleColumnCount) == 0) {
-                continue;
+                    continue;
+                }
             }
 
             removeCurrent();
@@ -435,8 +435,8 @@ implements Comparator {
         removeDuplicates(session);
         other.sortFull(session);
 
-        while (hasNext()) {
-            Object[] currentData = getNext();
+        while (next()) {
+            Object[] currentData = getCurrent();
             boolean  hasRow      = other.containsRow(currentData);
 
             if (hasRow) {
@@ -458,8 +458,8 @@ implements Comparator {
 
         it = fullIndex.emptyIterator();
 
-        while (hasNext()) {
-            Object[] currentData = getNext();
+        while (next()) {
+            Object[] currentData = getCurrent();
             boolean newGroup =
                 compareData == null
                 || fullIndex.compareRowNonUnique(
@@ -471,13 +471,14 @@ implements Comparator {
                 it          = other.findFirstRow(currentData);
             }
 
-            otherData = it.getNext();
+            if (it.next()) {
+                otherData = it.getCurrent();
 
-            if (otherData != null
-                    && fullIndex.compareRowNonUnique(
+                if (fullIndex.compareRowNonUnique(
                         session, currentData, otherData,
                         fullIndex.getColumnCount()) == 0) {
-                removeCurrent();
+                    removeCurrent();
+                }
             }
         }
 
@@ -491,8 +492,8 @@ implements Comparator {
 
         Object[] lastRowData = null;
 
-        while (hasNext()) {
-            Object[] currentData = getNext();
+        while (next()) {
+            Object[] currentData = getCurrent();
 
             if (hasNull(currentData)) {
                 continue;
@@ -518,8 +519,8 @@ implements Comparator {
         int      lastRowPos  = -1;
         Object[] lastRowData = null;
 
-        while (hasNext()) {
-            Object[] currentData = getNext();
+        while (next()) {
+            Object[] currentData = getCurrent();
 
             if (lastRowData == null) {
                 lastRowPos  = currentPos;
@@ -531,13 +532,13 @@ implements Comparator {
             if (fullIndex.compareRow(session, lastRowData, currentData) != 0) {
                 lastRowPos++;
 
-                lastRowData       = currentData;
-                table[lastRowPos] = currentData;
+                lastRowData           = currentData;
+                dataTable[lastRowPos] = currentData;
             }
         }
 
         for (int i = lastRowPos + 1; i < size; i++) {
-            table[i] = null;
+            dataTable[i] = null;
         }
 
         super.size = lastRowPos + 1;
@@ -576,8 +577,7 @@ implements Comparator {
             next();
         }
 
-        while (hasNext()) {
-            next();
+        while (next()) {
             removeCurrent();
         }
 
@@ -615,14 +615,14 @@ implements Comparator {
 
     boolean containsRow(Object[] data) {
 
-        int position = ArraySort.searchFirst(table, 0, size, data, this);
+        int position = ArraySort.searchFirst(dataTable, 0, size, data, this);
 
         return position >= 0;
     }
 
     RowIterator findFirstRow(Object[] data) {
 
-        int position = ArraySort.searchFirst(table, 0, size, data, this);
+        int position = ArraySort.searchFirst(dataTable, 0, size, data, this);
 
         if (position < 0) {
             position = size;
@@ -643,21 +643,21 @@ implements Comparator {
 
     private void setCapacity(int newSize) {
 
-        if (size > table.length) {
-            table = new Object[newSize][];
+        if (size > dataTable.length) {
+            dataTable = new Object[newSize][];
         }
     }
 
     private void ensureCapacity() {
 
-        if (size == table.length) {
+        if (size == dataTable.length) {
             int        newSize  = size == 0 ? 4
                                             : size * 2;
             Object[][] newTable = new Object[newSize][];
 
-            System.arraycopy(table, 0, newTable, 0, size);
+            System.arraycopy(dataTable, 0, newTable, 0, size);
 
-            table = newTable;
+            dataTable = newTable;
         }
     }
 
@@ -673,30 +673,40 @@ implements Comparator {
             pos = position;
         }
 
-        public Row getNextRow() {
-            return null;
+        public Object getField(int col) {
+
+            if (pos < size) {
+                return dataTable[pos][col];
+            } else {
+                return null;
+            }
         }
 
-        public Object[] getNext() {
+        public boolean next() {
 
             if (hasNext()) {
                 pos++;
 
-                return table[pos];
+                return true;
             }
 
+            return false;
+        }
+
+        public Row getCurrentRow() {
             return null;
         }
 
-        public boolean hasNext() {
-            return pos < size - 1;
+        public Object[] getCurrent() {
+
+            if (pos < size) {
+                return dataTable[pos];
+            } else {
+                return null;
+            }
         }
 
         public void removeCurrent() {}
-
-        public boolean setRowColumns(boolean[] columns) {
-            return false;
-        }
 
         public void release() {}
 

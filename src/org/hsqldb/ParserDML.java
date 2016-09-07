@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ import org.hsqldb.types.Type;
  * Parser for DML statements
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.4
  * @since 1.9.0
  */
 public class ParserDML extends ParserDQL {
@@ -169,42 +169,38 @@ public class ParserDML extends ParserDQL {
                     colCount        = columnNames.size();
                     insertColumnMap = table.getColumnIndexes(columnNames);
                     hasColumnList   = true;
-
-                    if (token.tokenType != Tokens.VALUES
-                            && token.tokenType != Tokens.OVERRIDING) {
-                        break;
-                    }
-
-                    // fall through
                 } else {
                     rewind(position);
-
-                    break;
                 }
+
+                break;
+            }
+            default :
+        }
+
+        if (token.tokenType == Tokens.OVERRIDING) {
+            read();
+
+            if (token.tokenType == Tokens.USER) {
+                read();
+
+                overridingUser = true;
+            } else if (token.tokenType == Tokens.SYSTEM) {
+                read();
+
+                overridingSystem = true;
+            } else {
+                throw unexpectedToken();
             }
 
-            // fall through
-            case Tokens.OVERRIDING : {
-                if (token.tokenType == Tokens.OVERRIDING) {
-                    read();
+            readThis(Tokens.VALUE);
+        }
 
-                    if (token.tokenType == Tokens.USER) {
-                        read();
+        switch (token.tokenType) {
 
-                        overridingUser = true;
-                    } else if (token.tokenType == Tokens.SYSTEM) {
-                        read();
-
-                        overridingSystem = true;
-                    } else {
-                        throw unexpectedToken();
-                    }
-
-                    readThis(Tokens.VALUE);
-
-                    if (token.tokenType != Tokens.VALUES) {
-                        break;
-                    }
+            case Tokens.VALUE : {
+                if (!database.sqlSyntaxMys) {
+                    throw unexpectedToken();
                 }
             }
 
@@ -341,6 +337,7 @@ public class ParserDML extends ParserDQL {
 
                 return cs;
             }
+            case Tokens.OPENBRACKET :
             case Tokens.WITH :
             case Tokens.SELECT :
             case Tokens.TABLE : {
@@ -400,11 +397,54 @@ public class ParserDML extends ParserDQL {
             tableToken.setWithColumnList();
         }
 
+        if (database.sqlSyntaxMys && isSpecial == StatementInsert.isNone
+                && readIfThis(Tokens.ON)) {
+            readThis(Tokens.DUPLICATE);
+            readThis(Tokens.KEY);
+            readThis(Tokens.UPDATE);
+
+            OrderedHashSet  targetSet    = new OrderedHashSet();
+            LongDeque       colIndexList = new LongDeque();
+            HsqlArrayList   exprList     = new HsqlArrayList();
+            RangeVariable[] rangeVariables;
+            RangeGroup      rangeGroup;
+
+            rangeVariables = new RangeVariable[]{ range };
+            rangeGroup     = new RangeGroupSimple(rangeVariables, false);
+            isSpecial      = StatementInsert.isUpdate;
+
+            readSetClauseList(rangeVariables, targetSet, colIndexList,
+                              exprList);
+
+            updateColumnMap = new int[colIndexList.size()];
+
+            colIndexList.toArray(updateColumnMap);
+
+            targets = new Expression[targetSet.size()];
+
+            targetSet.toArray(targets);
+
+            for (int i = 0; i < targets.length; i++) {
+                resolveReferencesAndTypes(rangeGroup, rangeGroups, targets[i]);
+            }
+
+            updateColumnCheckList = table.getColumnCheckList(updateColumnMap);
+            updateExpressions     = new Expression[exprList.size()];
+
+            exprList.toArray(updateExpressions);
+            resolveUpdateExpressions(table, rangeGroup, updateColumnMap,
+                                     updateExpressions, rangeGroups);
+        }
+
         StatementDMQL cs = new StatementInsert(session, table,
                                                insertColumnMap,
                                                insertColumnCheckList,
-                                               queryExpression, isSpecial,
-                                               overrideIndex, compileContext);
+                                               queryExpression,
+                                               updateExpressions,
+                                               updateColumnCheckList,
+                                               updateColumnMap, targets,
+                                               isSpecial, overrideIndex,
+                                               compileContext);
 
         return cs;
     }
@@ -469,6 +509,7 @@ public class ParserDML extends ParserDQL {
 
                 break;
             }
+            default :
         }
 
         if (!isTable) {
@@ -496,7 +537,8 @@ public class ParserDML extends ParserDQL {
 
         if (withCommit) {
             Object[] args = new Object[] {
-                objectName, restartIdentity, noCheck
+                objectName, Boolean.valueOf(restartIdentity),
+                Boolean.valueOf(noCheck)
             };
 
             return new StatementCommand(StatementTypes.TRUNCATE, args, null,
@@ -865,7 +907,7 @@ public class ParserDML extends ParserDQL {
                 degree = 1;
             }
 
-            readThis(Tokens.EQUALS);
+            readThis(Tokens.EQUALS_OP);
 
             int position = getPosition();
             int brackets = readOpenBrackets();
@@ -899,7 +941,13 @@ public class ParserDML extends ParserDQL {
                 rewind(position);
             }
 
-            if (degree > 1) {
+            boolean values = false;
+
+            if (database.sqlSyntaxMys) {
+                values = readIfThis(Tokens.VALUES);
+            }
+
+            if (degree > 1 || values) {
                 readThis(Tokens.OPENBRACKET);
 
                 Expression e = readRow();
@@ -943,7 +991,7 @@ public class ParserDML extends ParserDQL {
                 throw Error.error(ErrorCode.X_42579, col.getName().name);
             }
 
-            readThis(Tokens.EQUALS);
+            readThis(Tokens.EQUALS_OP);
 
             switch (token.tokenType) {
 
@@ -959,6 +1007,8 @@ public class ParserDML extends ParserDQL {
                     expressions.add(e);
                     read();
                     break;
+
+                default :
             }
 
             if (token.tokenType == Tokens.COMMA) {
@@ -1297,6 +1347,23 @@ public class ParserDML extends ParserDQL {
                     session, token.tokenString, token.namePrefix,
                     token.namePrePrefix, SchemaObject.PROCEDURE);
 
+            if (routineSchema == null && token.namePrefix == null) {
+                String schema = session.getSchemaName(null);
+                ReferenceObject synonym =
+                    database.schemaManager.findSynonym(token.tokenString,
+                                                       schema,
+                                                       SchemaObject.ROUTINE);
+
+                if (synonym != null) {
+                    HsqlName name = synonym.getTarget();
+
+                    routineSchema =
+                        (RoutineSchema) database.schemaManager
+                            .findSchemaObject(name.name, name.schema.name,
+                                              name.type);
+                }
+            }
+
             if (routineSchema != null) {
                 read();
 
@@ -1411,7 +1478,7 @@ public class ParserDML extends ParserDQL {
     }
 
     /**
-     * Used in ROUTINE statements. Accepts NEXT VALUE FOR SEQUENCE
+     * Used in ROUTINE statements. Accepts NEXT VALUE FOR SEQUENCE as source
      */
     void resolveOuterReferencesAndTypes(RangeGroup[] rangeGroups,
                                         Expression e) {

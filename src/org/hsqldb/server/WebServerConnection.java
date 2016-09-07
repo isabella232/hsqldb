@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -79,12 +79,9 @@ import org.hsqldb.rowio.RowOutputBinary;
  *  session.<p>
  *  (fredt@users)
  *
- * Rewritten in version HSQLDB 1.7.2, based on original Hypersonic code.
- *
- * @author Thomas Mueller (Hypersonic SQL Group)
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.2.9
- * @since Hypersonic SQL
+ * @version 2.3.4
+ * @since 1.6.2
  */
 class WebServerConnection implements Runnable {
 
@@ -342,8 +339,9 @@ class WebServerConnection implements Runnable {
 
             //
             Result resultOut;
+            int    type = resultIn.getType();
 
-            if (resultIn.getType() == ResultConstants.CONNECT) {
+            if (type == ResultConstants.CONNECT) {
                 try {
                     String databaseName = resultIn.getDatabaseName();
                     int    dbIndex      = server.getDBIndex(databaseName);
@@ -355,19 +353,14 @@ class WebServerConnection implements Runnable {
                                                    resultIn.getSubString(),
                                                    resultIn.getZoneString(),
                                                    resultIn.getUpdateCount());
-
-                    resultIn.readAdditionalResults(session, dataIn, rowIn);
-
-                    resultOut = Result.newConnectionAcknowledgeResponse(
-                        session.getDatabase(), session.getId(), dbID);
+                    resultOut =
+                        Result.newConnectionAcknowledgeResponse(session);
                 } catch (HsqlException e) {
                     resultOut = Result.newErrorResult(e);
                 } catch (RuntimeException e) {
                     resultOut = Result.newErrorResult(e);
                 }
             } else {
-                int dbID = resultIn.getDatabaseId();
-
                 if (session == null) {
                     resultOut = Result.newErrorResult(
                         Error.error(ErrorCode.SERVER_DATABASE_DISCONNECTED));
@@ -375,11 +368,13 @@ class WebServerConnection implements Runnable {
                     resultIn.setSession(session);
                     resultIn.readLobResults(session, dataIn, rowIn);
 
-                    resultOut = session.execute(resultIn);
+                    if (type == ResultConstants.SQLCANCEL) {
+                        resultOut = session.cancel(resultIn);
+                    } else {
+                        resultOut = session.execute(resultIn);
+                    }
                 }
             }
-
-            int type = resultIn.getType();
 
 // patched 2.2.9 by Aart 2012-05-15: Make sure 'Content-length' is correctly set
             if (type == ResultConstants.DISCONNECT
@@ -422,7 +417,7 @@ class WebServerConnection implements Runnable {
             dataOut.close();
 
 // patch-end 2.2.9 by Aart 2012-05-15
-        } catch (Exception e) {
+        } catch (IOException e) {
             server.printStackTrace(e);
         }
     }
@@ -532,7 +527,7 @@ class WebServerConnection implements Runnable {
     }
 
     /**
-     *  Processess an HTTP error condition, sending an error response to
+     *  Processes an HTTP error condition, sending an error response to
      *  the client.
      *
      * @param code the error condition code

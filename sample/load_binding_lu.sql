@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: load_binding_lu.sql 610 2008-12-22 15:54:18Z unsaved $
     Load BINDING Lookup Text Table
 */
 

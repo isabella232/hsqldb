@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- $Id$ -->
+<!-- $Id: dbproperties.xml 5633 2016-05-13 21:50:19Z fredt $ -->
 <!DOCTYPE book [
 <!ENTITY % dummy22 SYSTEM "../entities/global.ent">
 %dummy22;
@@ -28,7 +28,7 @@
       </author>
     </authorgroup>
 
-    <releaseinfo>$Revision$</releaseinfo>
+    <releaseinfo>$Revision: 5633 $</releaseinfo>
 
     <pubdate>&timestamp;</pubdate>
 
@@ -41,7 +41,7 @@
     </keywordset>
 
     <legalnotice>
-      <para>Copyright 2002-2015 Fred Toussi. Permission is granted to
+      <para>Copyright 2002-2016 Fred Toussi. Permission is granted to
       distribute this document without any alteration under the terms of the
       HSQLDB license. Additional permission is granted to the HSQL Development
       Group to distribute this document with or without alterations under the
@@ -490,6 +490,53 @@
     </table>
 
     <table frame="all" pgwide="1" tocentry="1">
+      <title>Empty batch in JDBC PreparedStatement</title>
+
+      <tgroup align="left" cols="3">
+        <colspec colname="c1" colwidth="7cm" />
+
+        <colspec colname="c2" colwidth="1.5cm" />
+
+        <colspec colname="c3" />
+
+        <thead>
+          <row>
+            <entry>Name</entry>
+
+            <entry>Default</entry>
+
+            <entry>Description</entry>
+          </row>
+        </thead>
+
+        <tbody valign="top">
+          <row>
+            <entry><property>allow_empty_batch</property></entry>
+
+            <entry><literal>false</literal></entry>
+
+            <entry>executeBatch with empty batch</entry>
+          </row>
+
+          <row>
+            <entry nameend="c3" namest="c1"><para>This property is used for
+            compatibility with other JDBC driver implementations such as the
+            PostgreSQL driver. By default
+            <methodname>PreparedStatement.executeBatch()</methodname> throws
+            an exception if addBatch() has not been called at all. Setting
+            this property to true ignores the empty batch and returns an empty
+            int[]. This property can be specified differently for different
+            connections to the same database.</para><para>The default is
+            false. Example below:</para><programlisting> jdbc:hsqldb:hsql://localhost/enrolments;allow_empty_batch=true</programlisting><para>When
+            a <classname>PreparedStatement</classname> is used inside a
+            user-defined stored procedure, the default, false, is always used
+            for this property.</para></entry>
+          </row>
+        </tbody>
+      </tgroup>
+    </table>
+
+    <table frame="all" pgwide="1" tocentry="1">
       <title>Creating New Database</title>
 
       <tgroup align="left" cols="3">
@@ -688,7 +735,7 @@
 
             <entry><literal>false</literal></entry>
 
-            <entry>checks the validity of the connection properties</entry>
+            <entry>checks the validity of the database properties</entry>
           </row>
 
           <row>
@@ -1013,6 +1060,47 @@
               LONGVARBINARY to be translated to CLOB and BLOB respectively. By
               default, they are translated to VARCHAR and
               VARBINARY.</para><para><programlisting>SET DATABASE SQL LONGVAR IS LOB { TRUE | FALSE }</programlisting></para></entry>
+            </row>
+          </tbody>
+        </tgroup>
+      </table>
+
+      <table frame="all" pgwide="1" tocentry="1">
+        <title>Type of string literals in CASE WHEN</title>
+
+        <tgroup align="left" cols="3">
+          <colspec colname="c1" colwidth="6.5cm" />
+
+          <colspec colname="c2" colwidth="1.5cm" />
+
+          <colspec colname="c3" />
+
+          <thead>
+            <row>
+              <entry>Name</entry>
+
+              <entry>Default</entry>
+
+              <entry>Description</entry>
+            </row>
+          </thead>
+
+          <tbody valign="top">
+            <row>
+              <entry><property>sql.char_literal</property></entry>
+
+              <entry><literal>true</literal></entry>
+
+              <entry>result of CASE WHEN with strings of different
+              lengths</entry>
+            </row>
+
+            <row>
+              <entry nameend="c3" namest="c1"><para>This property, when set
+              false, sets the type of all string literal to VARCHAR, as
+              opposed to CHARACTER. This results in strings not being padded
+              with spaces by CASE WHEN
+              expressions.</para><para><programlisting>SET DATABASE SQL CHARACTER LITERAL { TRUE | FALSE }</programlisting></para></entry>
             </row>
           </tbody>
         </tgroup>
@@ -1388,6 +1476,47 @@
       </table>
 
       <table frame="all" pgwide="1" tocentry="1">
+        <title>Storage of Live Java Objects</title>
+
+        <tgroup align="left" cols="3">
+          <colspec colname="c1" colwidth="6.5cm" />
+
+          <colspec colname="c2" colwidth="1.5cm" />
+
+          <colspec colname="c3" />
+
+          <thead>
+            <row>
+              <entry>Name</entry>
+
+              <entry>Default</entry>
+
+              <entry>Description</entry>
+            </row>
+          </thead>
+
+          <tbody valign="top">
+            <row>
+              <entry><property>sql.live_object</property></entry>
+
+              <entry><literal>false</literal></entry>
+
+              <entry>storage of Java Objects in OTHER columns with or without
+              serialization</entry>
+            </row>
+
+            <row>
+              <entry nameend="c3" namest="c1"><para>By default when Java
+              Objects are stored in a column of type OTHER, the objects are
+              serialized. Setting this property to true results in the Object
+              to be stored without serialization. This option is available in
+              mem: database only.</para><para><programlisting>SET DATABASE LIVE OBJECT</programlisting></para></entry>
+            </row>
+          </tbody>
+        </tgroup>
+      </table>
+
+      <table frame="all" pgwide="1" tocentry="1">
         <title>DB2 Style Syntax</title>
 
         <tgroup align="left" cols="3">
@@ -1659,8 +1788,10 @@
 
             <row>
               <entry nameend="c3" namest="c1"><para>Indicates the transaction
-              control mode for the database. The values, locks, mvlocks and
-              mvcc are allowed.</para><para><programlisting>SET DATABASE TRANSACTION CONTROL { LOCKS | MVLOCKS | MVCC }</programlisting></para></entry>
+              control mode for the database. The values,
+              <literal>locks</literal>, <literal>mvlocks</literal> and
+              <literal>mvcc</literal> are
+              allowed.</para><para><programlisting>SET DATABASE TRANSACTION CONTROL { LOCKS | MVLOCKS | MVCC }</programlisting></para></entry>
             </row>
           </tbody>
         </tgroup>
@@ -1950,7 +2081,7 @@
               <entry><literal>0</literal></entry>
 
               <entry>application logging level - can also be used when
-              openning an existing <literal>file:</literal> database</entry>
+              opening an existing <literal>file:</literal> database</entry>
             </row>
 
             <row>
@@ -1991,7 +2122,7 @@
 
               <entry><literal>0</literal></entry>
 
-              <entry>sql logging level - can also be used when openning an
+              <entry>sql logging level - can also be used when opening an
               existing <literal>file:</literal> database</entry>
             </row>
 
@@ -2078,7 +2209,7 @@
               <entry><literal>512</literal></entry>
 
               <entry>maximum number of unused space recovery - can also be
-              used when openning an existing <literal>file:</literal>
+              used when opening an existing <literal>file:</literal>
               database</entry>
             </row>
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ import org.hsqldb.types.Type;
  * It supplies the methods used to grant, revoke, test
  * and check a grantee's access rights to other database objects.
  * It also holds a reference to the common PUBLIC User Object,
- * which represent the special user refered to in
+ * which represent the special user referred to in
  * GRANT ... TO PUBLIC statements.<p>
  * The check(), isAccessible() and getGrantedClassNames() methods check the
  * rights granted to the PUBLIC User Object, in addition to individually
@@ -72,7 +72,7 @@ import org.hsqldb.types.Type;
  * @author Fred Toussi (fredt@users dot sourceforge.net)
  * @author Blaine Simpson (blaine dot simpson at admc dot com)
  *
- * @version 2.3.3
+ * @version 2.3.4
  * @since 1.8.0
  */
 public class Grantee implements SchemaObject {
@@ -88,9 +88,6 @@ public class Grantee implements SchemaObject {
     /** true if this grantee has database administrator priv by any means. */
     private boolean isAdmin = false;
 
-    /** true if this user can create schemas with its own authorisation */
-    boolean isSchemaCreator = false;
-
     /** true if this grantee is PUBLIC. */
     boolean isPublic = false;
 
@@ -103,7 +100,7 @@ public class Grantee implements SchemaObject {
     /** map with database object identifier keys and access privileges values */
     private MultiValueHashMap directRightsMap;
 
-    /** contains righs granted direct, or via roles, except those of PUBLIC */
+    /** contains rights granted direct, or via roles, except those of PUBLIC */
     HashMap fullRightsMap;
 
     /** These are the DIRECT roles.  Each of these may contain nested roles */
@@ -306,9 +303,8 @@ public class Grantee implements SchemaObject {
     void grant(HsqlName name, Right right, Grantee grantor,
                boolean withGrant) {
 
-        final Right grantableRights =
-            ((Grantee) grantor).getAllGrantableRights(name);
-        Right existingRight = null;
+        final Right grantableRights = grantor.getAllGrantableRights(name);
+        Right       existingRight   = null;
 
         if (right == Right.fullRights) {
             if (grantableRights.isEmpty()) {
@@ -355,7 +351,7 @@ public class Grantee implements SchemaObject {
         if (!grantor.isSystem()) {
 
             // based on assumption that there is no need to access
-            ((Grantee) grantor).grantedRightsMap.put(name, existingRight);
+            grantor.grantedRightsMap.put(name, existingRight);
         }
 
         updateAllRights();
@@ -402,7 +398,7 @@ public class Grantee implements SchemaObject {
 
         if (right.isFull) {
             directRightsMap.remove(name, existing);
-            ((Grantee) grantor).grantedRightsMap.remove(name, existing);
+            grantor.grantedRightsMap.remove(name, existing);
             updateAllRights();
 
             return;
@@ -412,7 +408,7 @@ public class Grantee implements SchemaObject {
 
         if (existing.isEmpty()) {
             directRightsMap.remove(name, existing);
-            ((Grantee) grantor).grantedRightsMap.remove(name, existing);
+            grantor.grantedRightsMap.remove(name, existing);
         }
 
         updateAllRights();
@@ -465,6 +461,7 @@ public class Grantee implements SchemaObject {
         if (existing == null) {
             return;
         }
+
         updateAllRights();
     }
 
@@ -855,7 +852,7 @@ public class Grantee implements SchemaObject {
             return false;
         }
 
-        return right.canAcesssNonSelect();
+        return right.canAccesssNonSelect();
     }
 
     public boolean hasColumnRights(SchemaObject table, int[] columnMap) {
@@ -889,7 +886,7 @@ public class Grantee implements SchemaObject {
      * be added to the Set of ROLE Grantee objects (roles) for the grantee.
      * The grantee will be the parameter.
      *
-     * If the direct permissions granted to an existing ROLE Grentee is
+     * If the direct permissions granted to an existing ROLE Grantee is
      * modified no extra initial action is necessary.
      * The existing Grantee will be the parameter.
      *
@@ -1030,7 +1027,7 @@ public class Grantee implements SchemaObject {
     Right getAllGrantableRights(HsqlName name) {
 
         if (isAdmin) {
-            return ((Grantee) name.schema.owner).ownerRights;
+            return name.schema.owner.ownerRights;
         }
 
         if (name.schema.owner == this) {
@@ -1038,7 +1035,7 @@ public class Grantee implements SchemaObject {
         }
 
         if (roles.contains(name.schema.owner)) {
-            return ((Grantee) name.schema.owner).ownerRights;
+            return name.schema.owner.ownerRights;
         }
 
         OrderedHashSet set = getAllRoles();
@@ -1149,7 +1146,7 @@ public class Grantee implements SchemaObject {
                     case SchemaObject.VIEW :
                         Table table =
                             granteeManager.database.schemaManager
-                                .findUserTable(null, hsqlname.name,
+                                .findUserTable(hsqlname.name,
                                                hsqlname.schema.name);
 
                         if (table != null) {
@@ -1218,8 +1215,7 @@ public class Grantee implements SchemaObject {
                     case SchemaObject.FUNCTION :
                     case SchemaObject.SPECIFIC_ROUTINE :
                         SchemaObject routine =
-                            (SchemaObject) granteeManager.database
-                                .schemaManager
+                            granteeManager.database.schemaManager
                                 .findSchemaObject(hsqlname.name,
                                                   hsqlname.schema.name,
                                                   hsqlname.type);
@@ -1241,6 +1237,8 @@ public class Grantee implements SchemaObject {
                                 hsqlname.getSchemaQualifiedStatementName());
                         }
                         break;
+
+                    default :
                 }
 
                 if (sb.length() == 0) {

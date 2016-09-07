@@ -1,5 +1,5 @@
 <?xml version='1.0'?>
-<!-- $Id$ -->
+<!-- $Id: fo.xsl 4584 2011-10-21 12:37:22Z unsaved $ -->
 <!-- See http://www.sagehill.net/docbookxsl/CustomDb5Xsl.html for general
      syntax. -->
 

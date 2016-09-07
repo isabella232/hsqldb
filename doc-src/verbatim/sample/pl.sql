@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: pl.sql 4564 2011-10-19 04:27:37Z unsaved $
     SQL File to illustrate the use of some basic SqlTool PL features.
     Invoke like
         java -jar .../sqltool.jar mem .../pl.sql

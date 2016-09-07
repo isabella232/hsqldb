@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <!--
-$Id$
+$Id: build-dist.xml 5329 2014-01-19 14:43:43Z unsaved $
 -->
 
 <!-- N.b. the clean targets, even 'clean-all', do not clean the "dist"

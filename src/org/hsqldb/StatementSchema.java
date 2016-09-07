@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2015, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@ import org.hsqldb.types.Type;
  * Implementation of Statement for DDL statements.<p>
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.4
  * @since 1.9.0
  */
 public class StatementSchema extends Statement {
@@ -129,6 +129,7 @@ public class StatementSchema extends Statement {
             case StatementTypes.DROP_INDEX :
             case StatementTypes.DROP_CONSTRAINT :
             case StatementTypes.DROP_COLUMN :
+            case StatementTypes.DROP_REFERENCE :
                 group = StatementTypes.X_SQL_SCHEMA_MANIPULATION;
                 break;
 
@@ -241,6 +242,11 @@ public class StatementSchema extends Statement {
                 order = 4;
                 break;
 
+            case StatementTypes.CREATE_REFERENCE :
+                group = StatementTypes.X_SQL_SCHEMA_MANIPULATION;
+                order = 12;
+                break;
+
             case StatementTypes.COMMENT :
                 group = StatementTypes.X_SQL_SCHEMA_MANIPULATION;
                 order = 11;
@@ -256,7 +262,7 @@ public class StatementSchema extends Statement {
                 break;
 
             default :
-                throw Error.runtimeError(ErrorCode.U_S0500, "StatemntSchema");
+                throw Error.runtimeError(ErrorCode.U_S0500, "StatementSchema");
         }
     }
 
@@ -267,7 +273,7 @@ public class StatementSchema extends Statement {
         try {
             result = getResult(session);
         } catch (Throwable t) {
-            result = Result.newErrorResult(t, null);
+            result = Result.newErrorResult(t, getSQL());
         }
 
         if (result.isError()) {
@@ -332,9 +338,8 @@ public class StatementSchema extends Statement {
                     name.setSchemaIfNull(session.getCurrentSchemaHsqlName());
 
                     if (name.type == SchemaObject.COLUMN) {
-                        Table table = schemaManager.getUserTable(session,
-                            name.parent);
-                        int index = table.getColumnIndex(name.name);
+                        Table table = schemaManager.getUserTable(name.parent);
+                        int   index = table.getColumnIndex(name.name);
 
                         object = table.getColumn(index);
                     } else {
@@ -365,8 +370,7 @@ public class StatementSchema extends Statement {
 
                             schemaManager.checkObjectIsReferenced(parent);
 
-                            Table table = schemaManager.getUserTable(session,
-                                parent);
+                            Table table = schemaManager.getUserTable(parent);
                             TriggerDef[] triggers = table.getTriggers();
 
                             for (int i = 0; i < triggers.length; i++) {
@@ -475,7 +479,20 @@ public class StatementSchema extends Statement {
                     switch (subType) {
 
                         case StatementTypes.ADD_CONSTRAINT : {
-                            Constraint c = (Constraint) arguments[2];
+                            Constraint c           = (Constraint) arguments[2];
+                            Boolean    ifNotExists = (Boolean) arguments[3];
+
+                            if (ifNotExists.booleanValue()) {
+                                SchemaObject object =
+                                    session.database.schemaManager
+                                        .findSchemaObject(c.getName().name, c
+                                            .getName().schema.name, c.getName()
+                                            .type);
+
+                                if (object != null) {
+                                    return Result.updateZeroResult;
+                                }
+                            }
 
                             switch (c.getConstraintType()) {
 
@@ -605,6 +622,16 @@ public class StatementSchema extends Statement {
 
                             break;
                         }
+                        case StatementTypes.ALTER_COLUMN_DROP_EXPRESSION : {
+                            ColumnSchema column = (ColumnSchema) arguments[2];
+                            int columnIndex =
+                                ((Integer) arguments[3]).intValue();
+
+                            column.setGeneratingExpression(null);
+                            table.setColumnTypeVars(columnIndex);
+
+                            break;
+                        }
                         case StatementTypes.ALTER_COLUMN_DROP_GENERATED : {
                             ColumnSchema column = (ColumnSchema) arguments[2];
                             int columnIndex =
@@ -696,9 +723,8 @@ public class StatementSchema extends Statement {
                     int      objectType = ((Integer) arguments[1]).intValue();
                     boolean  cascade = ((Boolean) arguments[2]).booleanValue();
                     boolean ifExists = ((Boolean) arguments[3]).booleanValue();
-                    Table table = schemaManager.getUserTable(session,
-                        name.parent);
-                    int colindex = table.getColumnIndex(name.name);
+                    Table    table = schemaManager.getUserTable(name.parent);
+                    int      colindex   = table.getColumnIndex(name.name);
 
                     if (table.getColumnCount() == 1) {
                         throw Error.error(ErrorCode.X_42591);
@@ -734,7 +760,8 @@ public class StatementSchema extends Statement {
             case StatementTypes.DROP_ORDERING :
             case StatementTypes.DROP_VIEW :
             case StatementTypes.DROP_INDEX :
-            case StatementTypes.DROP_CONSTRAINT : {
+            case StatementTypes.DROP_CONSTRAINT :
+            case StatementTypes.DROP_REFERENCE : {
                 try {
                     HsqlName name       = (HsqlName) arguments[0];
                     int      objectType = ((Integer) arguments[1]).intValue();
@@ -822,6 +849,7 @@ public class StatementSchema extends Statement {
                         case StatementTypes.DROP_COLLATION :
                         case StatementTypes.DROP_SEQUENCE :
                         case StatementTypes.DROP_TRIGGER :
+                        case StatementTypes.DROP_REFERENCE :
                             dropObject(session, name, cascade);
                             break;
 
@@ -874,7 +902,7 @@ public class StatementSchema extends Statement {
                     OrderedHashSet granteeList = (OrderedHashSet) arguments[0];
                     HsqlName       name        = (HsqlName) arguments[1];
 
-                    this.setSchemaName(session, null, name);
+                    setSchemaName(session, null, name);
 
                     name = schemaManager.getSchemaObjectName(name.schema,
                             name.name, name.type, true);
@@ -1205,8 +1233,8 @@ public class StatementSchema extends Statement {
                     if (table.hasLobColumn) {
                         RowIterator it = table.rowIterator(session);
 
-                        while (it.hasNext()) {
-                            Row      row  = it.getNextRow();
+                        while (it.next()) {
+                            Row      row  = it.getCurrentRow();
                             Object[] data = row.getData();
 
                             session.sessionData.adjustLobUsageCount(table,
@@ -1273,12 +1301,20 @@ public class StatementSchema extends Statement {
                 return Result.updateZeroResult;
 
             case StatementTypes.CREATE_VIEW : {
-                View view = (View) arguments[0];
+                View    view        = (View) arguments[0];
+                Boolean ifNotExists = (Boolean) arguments[1];
 
                 try {
-                    checkSchemaUpdateAuthorisation(session,
-                                                   view.getSchemaName());
-                    schemaManager.checkSchemaObjectNotExists(view.getName());
+                    setOrCheckObjectName(session, null, view.getName(), true);
+                } catch (HsqlException e) {
+                    if (ifNotExists != null && ifNotExists.booleanValue()) {
+                        return Result.updateZeroResult;
+                    } else {
+                        return Result.newErrorResult(e, sql);
+                    }
+                }
+
+                try {
                     view.compile(session, null);
                     schemaManager.addSchemaObject(view);
 
@@ -1288,30 +1324,42 @@ public class StatementSchema extends Statement {
                 }
             }
             case StatementTypes.CREATE_INDEX : {
-                Table    table;
-                HsqlName name;
-                int[]    indexColumns;
-                boolean  unique;
+                Table         table;
+                HsqlName      name;
+                int[]         indexColumns;
+                boolean       unique;
+                RoutineSchema routineSchema;
+                Boolean       ifNotExists;
 
-                table        = (Table) arguments[0];
-                indexColumns = (int[]) arguments[1];
-                name         = (HsqlName) arguments[2];
-                unique       = ((Boolean) arguments[3]).booleanValue();
+                table         = (Table) arguments[0];
+                indexColumns  = (int[]) arguments[1];
+                name          = (HsqlName) arguments[2];
+                unique        = ((Boolean) arguments[3]).booleanValue();
+                routineSchema = (RoutineSchema) arguments[4];
+                ifNotExists   = (Boolean) arguments[5];
+
+                /*
+                        Index index        = table.getIndexForColumns(indexColumns);
+
+                        if (index != null
+                                && ArrayUtil.areEqual(indexColumns, index.getColumns(),
+                                                      indexColumns.length, unique)) {
+                            if (index.isUnique() || !unique) {
+                                return;
+                            }
+                        }
+                */
+                try {
+                    setOrCheckObjectName(session, table.getName(), name, true);
+                } catch (HsqlException e) {
+                    if (ifNotExists != null && ifNotExists.booleanValue()) {
+                        return Result.updateZeroResult;
+                    } else {
+                        return Result.newErrorResult(e, sql);
+                    }
+                }
 
                 try {
-                    /*
-                            Index index        = table.getIndexForColumns(indexColumns);
-
-                            if (index != null
-                                    && ArrayUtil.areEqual(indexColumns, index.getColumns(),
-                                                          indexColumns.length, unique)) {
-                                if (index.isUnique() || !unique) {
-                                    return;
-                                }
-                            }
-                    */
-                    setOrCheckObjectName(session, table.getName(), name, true);
-
                     TableWorks tableWorks = new TableWorks(session, table);
 
                     tableWorks.addIndex(indexColumns, name, unique);
@@ -1320,6 +1368,40 @@ public class StatementSchema extends Statement {
                 } catch (HsqlException e) {
                     return Result.newErrorResult(e, sql);
                 }
+            }
+            case StatementTypes.CREATE_REFERENCE : {
+                HsqlName name;
+                HsqlName targetName;
+
+                name       = (HsqlName) arguments[0];
+                targetName = (HsqlName) arguments[1];
+
+                setSchemaName(session, null, name);
+                setSchemaName(session, null, targetName);
+                session.database.schemaManager.checkSchemaObjectNotExists(
+                    name);
+
+                // find the new target
+                SchemaObject object =
+                    session.database.schemaManager.findAnySchemaObject(
+                        targetName.name, targetName.schema.name);
+
+                if (object == null) {
+                    throw Error.error(ErrorCode.X_42501);
+                }
+
+                if (!session.getGrantee().isFullyAccessibleByRole(
+                        object.getName())) {
+                    throw Error.error(ErrorCode.X_42501);
+                }
+
+                targetName = object.getName();
+
+                SchemaObject reference = new ReferenceObject(name, targetName);
+
+                schemaManager.addSchemaObject(reference);
+
+                break;
             }
             case StatementTypes.COMMENT : {
                 HsqlName name    = (HsqlName) arguments[0];
@@ -1500,8 +1582,8 @@ public class StatementSchema extends Statement {
 
     private void dropTable(Session session, HsqlName name, boolean cascade) {
 
-        Table table = session.database.schemaManager.findUserTable(session,
-            name.name, name.schema.name);
+        Table table = session.database.schemaManager.findUserTable(name.name,
+            name.schema.name);
 
         session.database.schemaManager.dropTableOrView(session, table,
                 cascade);
@@ -1523,7 +1605,7 @@ public class StatementSchema extends Statement {
                 return;
             }
 
-            Error.error(ErrorCode.X_42505, schema.name);
+            throw Error.error(ErrorCode.X_42505, schema.name);
         }
 
         session.getGrantee().checkSchemaUpdateOrGrantRights(schema.name);

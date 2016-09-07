@@ -235,14 +235,14 @@ implements ActionListener, WindowListener, KeyListener, MouseListener {
         "See the HSQLDB Utilities Guide, forums and mailing lists \n"
         + "at http://hsqldb.org.\n\n"
         + "Please paste the following version identifier with any\n"
-        + "problem reports or help requests:  $Revision$"
+        + "problem reports or help requests:  $Revision: 5221 $"
         + (TT_AVAILABLE ? ""
                         : ("\n\nTransferTool classes are not in CLASSPATH.\n"
                            + "To enable the Tools menu, add 'transfer.jar' "
                            + "to your class path."));
     ;
     private static final String ABOUT_TEXT =
-        "$Revision$ of DatabaseManagerSwing\n\n"
+        "$Revision: 5221 $ of DatabaseManagerSwing\n\n"
         + "Copyright (c) 2001-2010, The HSQL Development Group.\n"
         + "http://hsqldb.org  (Utilities Guide available at this site).\n\n\n"
         + "You may use and redistribute according to the HSQLDB\n"

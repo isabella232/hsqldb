@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2014, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@ package org.hsqldb.lib;
  * containing a matching key, or  or -1 if not found.<p>
  *
  * @author Fred Toussi (fredt@users dot sourceforge.net)
- * @version 2.3.3
+ * @version 2.3.5
  * @since 2.3.3
  */
 public class IntIndex {
@@ -50,7 +50,6 @@ public class IntIndex {
     private boolean       hasChanged;
     private final boolean fixedSize;
     private int[]         keys;
-    private int[]         values;
 
 //
     private int targetSearchValue;
@@ -148,12 +147,11 @@ public class IntIndex {
     }
 
     /**
-     * Adds a key, value pair into the table with the guarantee that the key
+     * Adds a key into the table with the guarantee that the key
      * is equal or larger than the largest existing key. This prevents a sort
      * from taking place on next call to find()
      *
      * @param key the key
-     * @param value the value
      * @return true or false depending on success
      */
     public synchronized boolean addSorted(int key) {
@@ -245,10 +243,6 @@ public class IntIndex {
 
         int i = binarySlotSearch();
 
-        if (i == -1) {
-            return i;
-        }
-
         hasChanged = true;
 
         if (count != i) {
@@ -319,17 +313,15 @@ public class IntIndex {
                     baseIndex = i - 1;
                 }
 
-                if (i - baseIndex + 1 == count) {
+                if (i - baseIndex + 1 == number) {
                     return baseIndex;
                 }
-
-                continue;
             } else {
                 baseIndex = -1;
             }
         }
 
-        return baseIndex;
+        return -1;
     }
 
     /**
@@ -672,7 +664,6 @@ public class IntIndex {
         count--;
 
         keys[count]   = 0;
-        values[count] = 0;
     }
 
     /**
@@ -700,7 +691,7 @@ public class IntIndex {
 
     /**
      * push key, value pair
-     * @return boolean true if susseful
+     * @return boolean true if successful
      */
     private boolean push(int key) {
         return addUnsorted(key);

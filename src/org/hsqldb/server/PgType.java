@@ -1,4 +1,4 @@
-/* Copyright (c) 2001-2011, The HSQL Development Group
+/* Copyright (c) 2001-2016, The HSQL Development Group
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
 
 
 /*
- * $Id$
+ * $Id: PgType.java 5552 2016-03-12 21:32:03Z fredt $
  */
 
 package org.hsqldb.server;
@@ -82,7 +82,7 @@ public class PgType {
      * @see #PgType(Type, int, Integer, Integer)
      */
     protected PgType(Type hType, int oid, int typeWidth) {
-        this(hType, oid, new Integer(typeWidth), null);
+        this(hType, oid, Integer.valueOf(typeWidth), null);
     }
 
     /**
@@ -97,7 +97,7 @@ public class PgType {
      */
     protected PgType(Type hType, int oid, Integer dummy, long lpConstraint)
     throws RecoverableOdbcFailure {
-        this(hType, oid, dummy, new Integer((int) lpConstraint));
+        this(hType, oid, dummy, Integer.valueOf((int) lpConstraint));
         if (lpConstraint < 0) {
             throw new RecoverableOdbcFailure(
                 "Length/Precision value is below minimum value of 0");
@@ -117,7 +117,7 @@ public class PgType {
      *                     instance of the type.
      *                     <b>IMPORTANT!</b> for all types with positive
      *                     lpConstraint other than Timestamps and Times,
-     *                     add an extra 4 to satisy crazy driver protocol.
+     *                     add an extra 4 to satisfy crazy driver protocol.
      */
     protected PgType(Type hType,
         int oid, Integer typeWidthObject, Integer lpConstraintObject) {
@@ -203,7 +203,7 @@ public class PgType {
                 return bitSingleton;
             case Types.SQL_BIT_VARYING:
                 return bitVaryingSingleton;
-                // I have no idea why length contstaint spec is not needed for
+                // I have no idea why length constraint spec is not needed for
                 // BIT_VARYING.
 
             case Types.SQL_DATE:
@@ -211,19 +211,19 @@ public class PgType {
 
             // 4 bytes
             case Types.SQL_TIME :
-                return new PgType(hType, TYPE_TIME, new Integer(8),
+                return new PgType(hType, TYPE_TIME, Integer.valueOf(8),
                                   hType.precision);
 
             case Types.SQL_TIME_WITH_TIME_ZONE :
                 return new PgType(hType, TYPE_TIME_WITH_TMZONE,
-                                  new Integer(12), hType.precision);
+                                  Integer.valueOf(12), hType.precision);
 
             case Types.SQL_TIMESTAMP :
                 return new PgType(hType, TYPE_TIMESTAMP_NO_TMZONE,
-                                  new Integer(8), hType.precision);
+                                  Integer.valueOf(8), hType.precision);
 
             case Types.SQL_TIMESTAMP_WITH_TIME_ZONE :
-                return new PgType(hType, TYPE_TIMESTAMP, new Integer(8),
+                return new PgType(hType, TYPE_TIMESTAMP, Integer.valueOf(8),
                                   hType.precision);
 
             // Postgresql is returning type DATETIME for this case.
@@ -409,7 +409,7 @@ public class PgType {
     }
 
     /*
-     * The followign settings are a Java port of pgtypes.h
+     * The following settings are a Java port of pgtypes.h
      */
     public static final int TYPE_BOOL         =  16;
     public static final int TYPE_BYTEA        =  17;
@@ -480,7 +480,7 @@ public class PgType {
 
     /* Following stuff is to support code copied from
      * JDBCPreparedStatement.java. */
-    static final void throwError(HsqlException e) throws SQLException {
+    static void throwError(HsqlException e) throws SQLException {
 
 //#ifdef JAVA6
         throw JDBCUtil.sqlException(e.getMessage(), e.getSQLState(),
