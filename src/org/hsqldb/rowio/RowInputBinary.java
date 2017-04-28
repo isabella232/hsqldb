@@ -169,7 +169,16 @@ public class RowInputBinary extends RowInputBase implements RowInputInterface {
                                   "RowInputBinary - negative length");
             }
 
-            String s = StringConverter.readUTF(buffer, pos, length);
+            String s;
+    
+            // if we come across a string that is larger than 16MB, we assume it's likely
+            // corrupt and therefor should be skipped.
+            if (length > 16 * 1024 * 1024) {
+                s = StringConverter.skipUTF(buffer, pos, length);
+                length = s.length();
+            } else {
+                s = StringConverter.readUTF(buffer, pos, length);
+            }
 
             s   = ValuePool.getString(s);
             pos += length;

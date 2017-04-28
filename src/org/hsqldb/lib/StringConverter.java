@@ -73,6 +73,7 @@ package org.hsqldb.lib;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UTFDataFormatException;
+import java.util.Arrays;
 
 import org.hsqldb.map.BitMap;
 
@@ -468,6 +469,64 @@ public class StringConverter {
         return new String(b, 0, j);
     }
 
+    // If we've detected earlier upstream that this record is corrupt
+    // go ahead and scan forward replacing each utf8 character with question marks
+    // in the result.  We break out of the scan by either hitting the end of the buffer
+    // or by finding a terminator character (this appears to be a single byte 0x01).
+    public static String skipUTF(byte[] bytearr, int offset,
+                                 int length) throws IOException {
+
+        int c;
+        int count = 0;
+
+        while (count < length) {
+            if ((offset + count) >= bytearr.length) {
+                break;
+            }
+            c = (int) bytearr[offset + count];
+
+            if (c > 0) {
+
+                /* 0xxxxxxx*/
+                count++;
+
+                if (c == 1) {
+                    break;
+                }
+                continue;
+            }
+
+            c &= 0xff;
+
+            switch (c >> 4) {
+
+                case 12 :
+                case 13 :
+
+                    /* 110x xxxx   10xx xxxx*/
+                    count += 2;
+                    break;
+
+                case 14 :
+
+                    /* 1110 xxxx  10xx xxxx  10xx xxxx */
+                    count += 3;
+                    break;
+
+                default :
+                    count++;
+                    break;
+            }
+        }
+
+        char[] chars = new char[count];
+        Arrays.fill(chars, '?');
+
+        System.out.println("skipping corrupt record, filling with: " + Arrays.toString(chars));
+
+        return new String(chars);
+    }
+
     public static String readUTF(byte[] bytearr, int offset,
                                  int length) throws IOException {
 
@@ -479,11 +538,17 @@ public class StringConverter {
     public static String readUTF(byte[] bytearr, int offset, int length,
                                  char[] buf) throws IOException {
 
+        boolean recordfailed = false;
         int bcount = 0;
         int c, char2, char3;
         int count = 0;
 
         while (count < length) {
+            if ((offset + count) >= bytearr.length) {
+                buf[0] = '?';
+                recordfailed = true;
+                break;
+            }
             c = (int) bytearr[offset + count];
 
             if (bcount == buf.length) {
@@ -511,13 +576,22 @@ public class StringConverter {
                     count += 2;
 
                     if (count > length) {
-                        throw new UTFDataFormatException();
+                        buf[bcount++] = '?';
+                        buf[bcount++] = '?';
+                        recordfailed = true;
+                        break;
+
+//                        throw new UTFDataFormatException();
                     }
 
                     char2 = (int) bytearr[offset + count - 1];
 
                     if ((char2 & 0xC0) != 0x80) {
-                        throw new UTFDataFormatException();
+                        buf[bcount++] = '?';
+                        buf[bcount++] = '?';
+                        recordfailed = true;
+                        break;
+//                        throw new UTFDataFormatException();
                     }
 
                     buf[bcount++] = (char) (((c & 0x1F) << 6)
@@ -530,14 +604,24 @@ public class StringConverter {
                     count += 3;
 
                     if (count > length) {
-                        throw new UTFDataFormatException();
+                        buf[bcount++] = '?';
+                        buf[bcount++] = '?';
+                        buf[bcount++] = '?';
+                        recordfailed = true;
+                        break;
+//                        throw new UTFDataFormatException();
                     }
 
                     char2 = (int) bytearr[offset + count - 2];
                     char3 = (int) bytearr[offset + count - 1];
 
                     if (((char2 & 0xC0) != 0x80) || ((char3 & 0xC0) != 0x80)) {
-                        throw new UTFDataFormatException();
+                        buf[bcount++] = '?';
+                        buf[bcount++] = '?';
+                        buf[bcount++] = '?';
+                        recordfailed = true;
+                        break;
+//                        throw new UTFDataFormatException();
                     }
 
                     buf[bcount++] = (char) (((c & 0x0F) << 12)
@@ -546,12 +630,20 @@ public class StringConverter {
                     break;
 
                 default :
+                    count++;
+                    buf[bcount++] = '?';
+                    recordfailed = true;
+
+                    break;
 
                     /* 10xx xxxx,  1111 xxxx */
-                    throw new UTFDataFormatException();
+//                    throw new UTFDataFormatException();
             }
         }
 
+        if (recordfailed) {
+            System.out.println("offset: " + Integer.toString(offset) + ", len: " + Integer.toString(length) + ", record failed: " + new String(buf));
+        }
         // The number of chars produced may be less than length
         return new String(buf, 0, bcount);
     }

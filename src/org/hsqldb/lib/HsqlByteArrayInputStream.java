@@ -108,7 +108,7 @@ implements DataInput {
         int ch = read();
 
         if (ch < 0) {
-            throw new EOFException();
+            return 0;
         }
 
         return (byte) ch;
