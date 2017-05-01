@@ -283,7 +283,7 @@ final class RAFile implements RandomAccessInterface {
 
             if (length > buffer.length
                     && (seekPosition < bufferOffset
-                        || seekPosition >= bufferOffset + buffer.length)) {
+                    || seekPosition >= bufferOffset + buffer.length)) {
                 file.seek(seekPosition);
                 file.readFully(b, offset, length);
 
@@ -316,6 +316,16 @@ final class RAFile implements RandomAccessInterface {
 
                 seekPosition += (length - bytesRead);
             }
+        } catch(EOFException e) {
+            resetPointer();
+            int max = length;
+            if (max > 25) {
+                max = 25;
+            }
+            for (int n = 0; n < max; n++) {
+                b[n] = '?';
+            }
+            System.out.println("skipping EOF corruption - replacing with " + Integer.toString(max) + " ?s");
         } catch (IOException e) {
             resetPointer();
             logger.logWarningEvent("failed to read a byte array", e);

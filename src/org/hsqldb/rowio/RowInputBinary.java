@@ -31,6 +31,7 @@
 
 package org.hsqldb.rowio;
 
+import java.util.Arrays;
 import java.io.EOFException;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -164,16 +165,16 @@ public class RowInputBinary extends RowInputBase implements RowInputInterface {
         try {
             int length = readInt();
 
-            if (length < 0) {
-                throw Error.error(ErrorCode.GENERAL_IO_ERROR,
-                                  "RowInputBinary - negative length");
-            }
+//            if (length < 0) {
+//                throw Error.error(ErrorCode.GENERAL_IO_ERROR,
+//                                  "RowInputBinary - negative length");
+//            }
 
             String s;
     
             // if we come across a string that is larger than 16MB, we assume it's likely
             // corrupt and therefor should be skipped.
-            if (length > 16 * 1024 * 1024) {
+            if (length > 16 * 1024 * 1024 || length < 0) {
                 s = StringConverter.skipUTF(buffer, pos, length);
                 length = s.length();
             } else {
