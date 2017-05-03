@@ -522,9 +522,51 @@ public class StringConverter {
         char[] chars = new char[count];
         Arrays.fill(chars, '?');
 
-        System.out.println("skipping corrupt record, filling with: " + Arrays.toString(chars));
+        System.out.println("skipping corrupt record: \n" + byteArrayToString(bytearr, count, offset).toString());
+        System.out.println("filling with: \n" + charArrayToString(chars).toString());
 
         return new String(chars);
+    }
+
+    private static StringBuilder byteArrayToString(byte[] arr, int count, int offset) {
+        StringBuilder bytebuilder = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            if (i > 0) {
+                if (i % 16 == 0) {
+                    bytebuilder.append("\n");
+                }
+                else if (i % 4 == 0) {
+                    bytebuilder.append("\t");
+                }
+            }
+
+            bytebuilder.append(String.format("%02x ", arr[offset + i]));
+        }
+
+        return bytebuilder;
+    }
+
+    private static StringBuilder charArrayToString(char[] chars) {
+        final StringBuilder charbuilder = new StringBuilder();
+        for (int i = 0; i < chars.length; i++) {
+            if (i > 0) {
+                if (i % 16 == 0) {
+                    charbuilder.append("\n");
+                }
+                else if (i % 4 == 0) {
+                    charbuilder.append("\t");
+                }
+            }
+
+            char ch = chars[i];
+            if ((int)ch < 32) {
+                charbuilder.append("? ");
+            } else {
+                charbuilder.append(ch + " ");
+            }
+        }
+
+        return charbuilder;
     }
 
     public static String readUTF(byte[] bytearr, int offset,
@@ -642,7 +684,27 @@ public class StringConverter {
         }
 
         if (recordfailed) {
-            System.out.println("offset: " + Integer.toString(offset) + ", len: " + Integer.toString(length) + ", record failed: " + new String(buf));
+            final StringBuilder charbuilder = new StringBuilder();
+            for (int i = 0; i < bcount; i++) {
+                if (i > 0) {
+                    if (i % 16 == 0) {
+                        charbuilder.append("\n");
+                    }
+                    else if (i % 4 == 0) {
+                        charbuilder.append("\t");
+                    }
+                }
+
+                char ch = buf[i];
+                if ((int)ch < 32) {
+                    charbuilder.append("? ");
+                } else {
+                    charbuilder.append(ch + " ");
+                }
+            }
+
+            System.out.println("skipping corrupt record: \n" + byteArrayToString(bytearr, count, offset).toString());
+            System.out.println("filling with: \n" + charbuilder.toString());
         }
         // The number of chars produced may be less than length
         return new String(buf, 0, bcount);
